@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Game of Life Musical Instrument</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="container">
+        <div id="left-side">
+            <!-- Containers will be dynamically added here -->
+        </div>
+
+        <div id="right-side">
+            <h2>Options</h2>
+
+            <!-- Simulation Size Input -->
+            <label for="sim-size">Simulation Size:</label>
+            <input type="number" id="sim-size" min="1" max="25" value="10">
+
+            <!-- TET System Selection -->
+            <label for="tet-select">TET System:</label>
+            <select id="tet-select">
+                <option value="5">5-TET</option>
+                <option value="12" selected>12-TET</option>
+                <option value="24">24-TET</option>
+                <option value="31">31-TET</option>
+                <option value="48">48-TET</option>
+            </select>
+
+            <!-- Key Selection -->
+            <label for="key-select">Key:</label>
+            <select id="key-select">
+                <!-- Options will be dynamically populated -->
+            </select>
+
+            <!-- Scale Selection -->
+            <label for="scale-select">Scale:</label>
+            <select id="scale-select">
+                <!-- Options will be dynamically populated -->
+            </select>
+
+            <!-- Synth Selection -->
+            <label for="synth-select">Select Synth:</label>
+            <select id="synth-select">
+                <!-- Options will be populated dynamically -->
+            </select>
+
+            <!-- Populate Automatas Option -->
+            <label for="populate-automatas">Populate Automatas:</label>
+            <input type="checkbox" id="populate-automatas" />
+
+            <!-- Add Simulation Button -->
+            <button id="add-simulation">Add Simulation</button>
+
+            <!-- Tempo Control -->
+            <label for="tempo-slider">Tempo:</label>
+            <input type="range" id="tempo-slider" min="60" max="180" value="120" step="1">
+            <span id="tempo-value">120 BPM</span>
+        </div>
+    </div>
+
+    <script src="synth.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

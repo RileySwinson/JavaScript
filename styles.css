@@ -1,0 +1,183 @@
+/* Reset default margins and paddings */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+/* Main container holding left and right sides */
+#container {
+    display: flex;
+    height: 100%;
+}
+
+/* Left side for containers */
+#left-side {
+    flex: 1;
+    overflow-x: auto;
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    background-color: #e0e0e0;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+/* Right side menu */
+#right-side {
+    width: 220px;
+    padding: 20px;
+    box-sizing: border-box;
+    background-color: #f0f0f0;
+    border-left: 1px solid #ccc;
+}
+
+/* Individual container styling */
+.container {
+    flex: none;
+    width: 360px;
+    margin: 5px;
+    border: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 10px);
+    background-color: #fff;
+}
+
+/* Simulation area at the top of the container */
+.simulation-area {
+    flex: none;
+    width: 100%;
+    height: 360px;
+    background-color: #ddd;
+    position: relative;
+}
+
+/* Options and counters area at the bottom of the container */
+.options-area {
+    flex: 1;
+    padding: 10px;
+    background-color: #f9f9f9;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* Styling for the right-side menu elements */
+#right-side h2 {
+    margin-top: 0;
+}
+
+#right-side label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#right-side input,
+#right-side select {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+#right-side button {
+    padding: 10px 15px;
+    width: 100%;
+    background-color: #5cb85c;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#right-side button:hover {
+    background-color: #4cae4c;
+}
+
+/* Button styling in options area */
+.options-area button {
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.options-area button:hover {
+    background-color: #0056b3;
+}
+
+/* Counter styling */
+.counter {
+    margin: 10px 0;
+    font-size: 12px;
+}
+
+/* Delete and Re-randomize buttons */
+.delete-button {
+    margin-top: auto;
+    background-color: #ff4d4d;
+    color: white;
+}
+
+.rerandomize-button {
+    background-color: #4da6ff;
+    color: white;
+}
+
+/* Align labels above sliders */
+.options-area label {
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.options-area input[type="range"] {
+    margin-bottom: 5px;
+}
+
+/* Style for checkboxes and labels */
+.options-area label > input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+/* Container adjustments */
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    margin: 10px;
+    height: 500px;
+}
+
+.options-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-grow: 1;
+    justify-content: flex-start;
+}
+
+/* Ensure labels are above inputs */
+.options-area label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+/* Adjust the style of the simulation area */
+.simulation-area canvas {
+    display: block;
+}
+
+/* Synth label styling */
+.synth-label {
+    font-weight: bold;
+    margin-top: 5px;
+}
