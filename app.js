@@ -45,13 +45,20 @@ class GameOfLife {
         const rescheduleUpdates = () => {
             if (this.isRunning) {
                 clearTimeout(this.timeout);
-                clearInterval(this.interval);
                 this.start(); 
             }
         };
 
         this.controls.updateSpeedSlider.addEventListener('input', rescheduleUpdates);
         this.controls.rhythmicOffsetSlider.addEventListener('input', rescheduleUpdates);
+
+        // Initialize repetitions
+        this.numRepetitions = parseInt(this.controls.repetitionsSelect.value) || 1;
+        this.currentRepetition = 0;
+
+        this.controls.repetitionsSelect.addEventListener('change', () => {
+            this.numRepetitions = parseInt(this.controls.repetitionsSelect.value) || 1;
+        });
 
         this.renderGrid();
     }
@@ -100,38 +107,58 @@ class GameOfLife {
     }
 
     updateGrid() {
-        let newGrid = this.createGrid();
+        this.currentRepetition++;
+    
+        const isStateBasedMode = this.controls.soundModeToggle.checked;
+        const selectedMode = this.controls.soundModeSelect.value;
 
+        if (this.currentRepetition < this.numRepetitions) {
+            // Generate sound without updating the grid
+            if (isStateBasedMode) {
+                this.generateSound(); // No mode needed for state-based
+            } else {
+                this.generateSound(selectedMode); // Pass the selected mode
+            }
+            return;
+        } else {
+            this.currentRepetition = 0;
+        }
+    
+        let newGrid = this.createGrid();
+    
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
                 let liveNeighbors = this.countLiveNeighbors(i, j);
                 let currentState = this.grid[i][j];
                 let newState;
-
+    
                 if (currentState === 1) {
                     newState = (liveNeighbors < 2 || liveNeighbors > 3) ? 0 : 1;
                 } else {
                     newState = (liveNeighbors === 3) ? 1 : 0;
                 }
-
+    
                 newGrid[i][j] = newState;
             }
         }
-
+    
         this.previousGrid = JSON.parse(JSON.stringify(this.grid));
         this.grid = newGrid;
         this.renderGrid();
-
+    
         const aliveCount = this.countAliveCells();
         const newbornCount = this.countNewbornCells();
         const newlyDeadCount = this.countNewlyDeadCells();
-
+    
         this.counterElements.alive.innerText = `Alive: ${aliveCount}`;
         this.counterElements.newborn.innerText = `Newborn: ${newbornCount}`;
         this.counterElements.newlyDead.innerText = `Newly Dead: ${newlyDeadCount}`;
-
-        const selectedMode = this.container.querySelector('.sound-mode-select').value;
-        this.generateSound(selectedMode);
+    
+        if (isStateBasedMode) {
+            this.generateSound(); // No mode needed for state-based
+        } else {
+            this.generateSound(selectedMode); // Pass the selected mode
+        }
     }
 
     countLiveNeighbors(row, col) {
@@ -206,6 +233,7 @@ class GameOfLife {
         this.isRunning = false;
         clearTimeout(this.timeout);
     }
+    
     generateSound(mode) {
         const isStateBasedMode = this.controls.soundModeToggle.checked;
         const volume = parseFloat(this.controls.volumeSlider.value) || 0.5;
@@ -218,7 +246,7 @@ class GameOfLife {
             const newlyDeadCount = this.countNewlyDeadCells();
 
             const getFrequency = (count, octaveShift) => {
-                const scaleLength = scaleF// Clear any scheduled updatesrequencies.length;
+                const scaleLength = scaleFrequencies.length;
                 if (scaleLength === 0) return null;
                 const scaleRepeats = Math.floor(count / scaleLength);
                 const noteIndex = count % scaleLength;
@@ -246,7 +274,7 @@ class GameOfLife {
                     playedFrequencies.push(freq);
                 }
             }
-        } else {
+        } else if (mode) { // Ensure mode is provided
             let notesToPlay = [];
             const centerRow = Math.floor(this.rows / 2);
 
@@ -280,7 +308,7 @@ class GameOfLife {
                                 playedFrequencies.push(freq);
                             }
                         }
-                    }rescheduleUpdates
+                    }
                     break;
                 case 'rightmost-alive':
                     for (let col = 0; col < this.cols; col++) {
@@ -306,9 +334,13 @@ class GameOfLife {
                         }
                     }
                     break;
+                default:
+                    console.warn(`Unknown sound mode: ${mode}`);
             }
 
             notesToPlay.forEach(frequency => this.synth.play(frequency, 1.0, 0.5, this.gainNode));
+        } else {
+            console.warn('Sound mode not specified or invalid.');
         }
 
         // Log the frequencies to the console
@@ -392,6 +424,7 @@ function startOnDownbeat(gameInstance) {
         automataToStart.clear(); // Clear the set after starting all instances
     }, timeUntilNextBeat);
 }
+
 document.getElementById('add-simulation').addEventListener('click', function () {
     const simSize = parseInt(document.getElementById('sim-size').value);
     const tet = document.getElementById('tet-select').value;
@@ -402,7 +435,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     const isPopulated = document.getElementById('populate-automatas').checked;
 
     if (simSize < 1 || simSize > 48) {
-        alert('Please enter a simulation size between 1 and 25.');
+        alert('Please enter a simulation size between 1 and 48.');
         return;
     }
 
@@ -496,6 +529,25 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     optionsArea.appendChild(rhythmicOffsetLabel);
     optionsArea.appendChild(rhythmicOffsetSlider);
 
+    // Number of Repetitions Control
+    const repetitionsLabel = document.createElement('label');
+    repetitionsLabel.innerText = 'Number of Repetitions: ';
+    repetitionsLabel.style.display = 'block';
+    repetitionsLabel.style.marginTop = '10px';
+
+    const repetitionsSelect = document.createElement('select');
+
+    for (let i = 1; i <= 10; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.text = i;
+        repetitionsSelect.appendChild(option);
+    }
+
+    repetitionsLabel.appendChild(repetitionsSelect);
+    optionsArea.appendChild(repetitionsLabel);
+
+    // Sound Mode Selection
     const soundModeSelect = document.createElement('select');
     soundModeSelect.className = 'sound-mode-select';
     soundModeSelect.innerHTML = `
@@ -504,15 +556,15 @@ document.getElementById('add-simulation').addEventListener('click', function () 
         <option value="born-cells">Play Born Cells</option>
         <option value="all-alive">Play All Alive Cells</option>
     `;
+    soundModeSelect.style.display = 'block';
+    soundModeSelect.style.marginTop = '10px';
     optionsArea.appendChild(soundModeSelect);
 
-    const playSoundButton = document.createElement('button');
-    playSoundButton.innerText = 'Play Sound';
-    optionsArea.appendChild(playSoundButton);
-
+    // Sound Mode Toggle
     const soundModeToggleContainer = document.createElement('div');
     soundModeToggleContainer.style.display = 'flex';
     soundModeToggleContainer.style.alignItems = 'center';
+    soundModeToggleContainer.style.marginTop = '10px';
 
     const soundModeToggle = document.createElement('input');
     soundModeToggle.type = 'checkbox';
@@ -528,6 +580,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     soundModeToggleContainer.appendChild(soundModeLabel);
     optionsArea.appendChild(soundModeToggleContainer);
 
+    // New Sound Options for State-Based Mode
     const newSoundOptionsContainer = document.createElement('div');
     newSoundOptionsContainer.style.marginTop = '10px';
 
@@ -536,22 +589,22 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     aliveSoundCheckbox.checked = true;
     const aliveSoundLabel = document.createElement('label');
     aliveSoundLabel.innerText = 'Play sound for total alive cells';
+    aliveSoundLabel.prepend(aliveSoundCheckbox);
 
     const newlyDeadSoundCheckbox = document.createElement('input');
     newlyDeadSoundCheckbox.type = 'checkbox';
     newlyDeadSoundCheckbox.checked = true;
     const newlyDeadSoundLabel = document.createElement('label');
     newlyDeadSoundLabel.innerText = 'Play sound for newly dead cells';
+    newlyDeadSoundLabel.prepend(newlyDeadSoundCheckbox);
 
     const newbornSoundCheckbox = document.createElement('input');
     newbornSoundCheckbox.type = 'checkbox';
     newbornSoundCheckbox.checked = true;
     const newbornSoundLabel = document.createElement('label');
     newbornSoundLabel.innerText = 'Play sound for newly alive cells';
-
-    aliveSoundLabel.prepend(aliveSoundCheckbox);
-    newlyDeadSoundLabel.prepend(newlyDeadSoundCheckbox);
     newbornSoundLabel.prepend(newbornSoundCheckbox);
+
     newSoundOptionsContainer.append(aliveSoundLabel, newlyDeadSoundLabel, newbornSoundLabel);
     optionsArea.appendChild(newSoundOptionsContainer);
 
@@ -566,24 +619,20 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     soundModeToggle.addEventListener('change', updateNewSoundOptionsState);
     updateNewSoundOptionsState();
 
+    // Rerandomize and Delete Buttons
     const rerandomizeButton = document.createElement('button');
     rerandomizeButton.innerText = 'Re-randomize Automaton';
     rerandomizeButton.className = 'rerandomize-button';
+    rerandomizeButton.style.display = 'block';
+    rerandomizeButton.style.marginTop = '10px';
     optionsArea.appendChild(rerandomizeButton);
 
     const deleteButton = document.createElement('button');
     deleteButton.innerText = 'Delete Simulation';
     deleteButton.className = 'delete-button';
+    deleteButton.style.display = 'block';
+    deleteButton.style.marginTop = '10px';
     optionsArea.appendChild(deleteButton);
-
-    rerandomizeButton.addEventListener('click', () => {
-        game.randomizeGrid();
-    });
-
-    deleteButton.addEventListener('click', () => {
-        game.stop();
-        container.remove();
-    });
 
     container.appendChild(simArea);
     container.appendChild(optionsArea);
@@ -595,13 +644,13 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     const controls = {
         soundModeToggle: soundModeToggle,
         soundModeSelect: soundModeSelect,
-        playSoundButton: playSoundButton,
         aliveSoundCheckbox: aliveSoundCheckbox,
         newlyDeadSoundCheckbox: newlyDeadSoundCheckbox,
         newbornSoundCheckbox: newbornSoundCheckbox,
         updateSpeedSlider: updateSpeedSlider,
         volumeSlider: volumeSlider,
-        rhythmicOffsetSlider: rhythmicOffsetSlider
+        rhythmicOffsetSlider: rhythmicOffsetSlider,
+        repetitionsSelect: repetitionsSelect
     };
 
     const game = new GameOfLife(simSize, simSize, canvas, counters, key, scale, container, controls, tet, selectedSynth);
@@ -615,7 +664,15 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     });
 
     stopButton.addEventListener('click', () => game.stop());
-    playSoundButton.addEventListener('click', () => game.generateSound());
+
+    rerandomizeButton.addEventListener('click', () => {
+        game.randomizeGrid();
+    });
+
+    deleteButton.addEventListener('click', () => {
+        game.stop();
+        container.remove();
+    });
 
     window.addEventListener('resize', () => {
         canvas.width = simArea.clientWidth;
