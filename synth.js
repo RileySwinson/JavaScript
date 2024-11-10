@@ -4,7 +4,7 @@ const WaveformType = Object.freeze({
     SQUARE: 'square',
     SAWTOOTH: 'sawtooth',
     TRIANGLE: 'triangle',
-    NOISE: 'noise' // For noise generation
+    NOISE: 'noise'
 });
 
 class Synth {
@@ -29,24 +29,24 @@ class Synth {
         }
     }
 
-    play(frequency, masterVolume = 0.5, duration = 1) {
+    play(frequency, masterVolume = 1.0, duration = 1, outputNode = null) {
         const audioContext = Synth.audioContext;
-
+    
         // Main gain node to control overall volume and apply envelope
         const mainGainNode = audioContext.createGain();
         const currentTime = audioContext.currentTime;
         const attackEndTime = currentTime + this.attack;
         const decayEndTime = attackEndTime + this.decay;
         const releaseStartTime = currentTime + duration;
-
+    
         mainGainNode.gain.setValueAtTime(0, currentTime);
         mainGainNode.gain.linearRampToValueAtTime(masterVolume, attackEndTime); // Attack
         mainGainNode.gain.linearRampToValueAtTime(masterVolume * this.sustain, decayEndTime); // Decay
         mainGainNode.gain.setValueAtTime(masterVolume * this.sustain, releaseStartTime); // Sustain
         mainGainNode.gain.linearRampToValueAtTime(0, releaseStartTime + this.release); // Release
-
+    
         let finalNode = mainGainNode;
-
+    
         // Apply filter if specified
         if (this.filter) {
             const filterNode = audioContext.createBiquadFilter();
@@ -55,28 +55,33 @@ class Synth {
             mainGainNode.connect(filterNode);
             finalNode = filterNode;
         }
-
-        finalNode.connect(audioContext.destination);
-
+    
+        // Connect the final node to the outputNode or destination
+        if (outputNode) {
+            finalNode.connect(outputNode);
+        } else {
+            finalNode.connect(audioContext.destination);
+        }
+    
         // Create and connect each oscillator with its own gain for individual volume control
         this.oscillators.forEach(oscConfig => {
             const oscGainNode = audioContext.createGain();
             oscGainNode.gain.value = oscConfig.volume || 0.5; // Default volume for each oscillator
-
+    
             if (oscConfig.waveform === WaveformType.NOISE) {
                 // Create noise buffer
                 const bufferSize = audioContext.sampleRate * (duration + this.release);
                 const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
                 const output = noiseBuffer.getChannelData(0);
-
+    
                 for (let i = 0; i < bufferSize; i++) {
                     output[i] = Math.random() * 2 - 1;
                 }
-
+    
                 const noiseSource = audioContext.createBufferSource();
                 noiseSource.buffer = noiseBuffer;
                 noiseSource.loop = false;
-
+    
                 noiseSource.connect(oscGainNode);
                 oscGainNode.connect(mainGainNode);
                 noiseSource.start(currentTime);
@@ -86,7 +91,7 @@ class Synth {
                 oscillator.type = oscConfig.waveform;
                 oscillator.frequency.setValueAtTime(frequency, currentTime);
                 oscillator.detune.setValueAtTime(oscConfig.detune || 0, currentTime);
-
+    
                 oscillator.connect(oscGainNode);
                 oscGainNode.connect(mainGainNode);
                 oscillator.start(currentTime);

@@ -60,72 +60,6 @@ const frequencies = {
         });
     }
 };
-const synthInstruments = {
-    'Bass Synth': new Synth({
-        oscillators: [
-            { waveform: WaveformType.SQUARE },
-            { waveform: WaveformType.SAWTOOTH, detune: -10 },
-            { waveform: WaveformType.SAWTOOTH, detune: 10 }
-        ],
-        filter: { type: 'lowpass', frequency: 200 },
-        attack: 0.05,
-        decay: 0.2,
-        sustain: 0.8,
-        release: 0.5
-    }),
-    'Kick Drum': new Synth({
-        oscillators: [{ waveform: WaveformType.SINE }],
-        filter: { type: 'lowpass', frequency: 100 },
-        attack: 0,
-        decay: 0.1,
-        sustain: 0,
-        release: 0.1
-    }),
-    'Snare Drum': new Synth({
-        oscillators: [{ waveform: WaveformType.NOISE }],
-        filter: { type: 'highpass', frequency: 1000 },
-        attack: 0,
-        decay: 0.2,
-        sustain: 0,
-        release: 0.2
-    }),
-    'Cymbal': new Synth({
-        oscillators: [{ waveform: WaveformType.NOISE }],
-        filter: { type: 'highpass', frequency: 5000 },
-        attack: 0,
-        decay: 0.5,
-        sustain: 0,
-        release: 0.5
-    }),
-    'Piano Synth': new Synth({
-        oscillators: [
-            { waveform: WaveformType.SINE },
-            { waveform: WaveformType.SINE, detune: -5 },
-            { waveform: WaveformType.SINE, detune: 5 }
-        ],
-        attack: 0.01,
-        decay: 0.3,
-        sustain: 0.5,
-        release: 0.5
-    }),
-    // Existing instruments
-    'Default Synth': new Synth({ oscillators: [{ waveform: WaveformType.SINE }] }),
-    'Square Wave Synth': new Synth({ oscillators: [{ waveform: WaveformType.SQUARE }] }),
-    'Sawtooth Synth': new Synth({ oscillators: [{ waveform: WaveformType.SAWTOOTH }] }),
-    'Triangle Synth': new Synth({ oscillators: [{ waveform: WaveformType.TRIANGLE }] }),
-    'Smooth Synth': new Synth({
-        oscillators: [{ waveform: WaveformType.SINE }],
-        attack: 0.2,
-        release: 1.0
-    }),
-    'Brassy Synth': new Synth({
-        oscillators: [{ waveform: WaveformType.SAWTOOTH }],
-        attack: 0.05,
-        decay: 0.3,
-        sustain: 0.7,
-        release: 0.5
-    })
-};
 
 // Populate the "Select Synth" dropdown
 const synthSelect = document.getElementById('synth-select');
@@ -136,7 +70,6 @@ for (let synthName in synthInstruments) {
     synthSelect.appendChild(option);
 }
 
-// Game of Life Class
 class GameOfLife {
     constructor(rows, cols, canvas, counterElements, key, scale, container, controls, tet, synth) {
         this.rows = rows;
@@ -154,35 +87,44 @@ class GameOfLife {
         this.isRunning = false;
         this.controls = controls;
         this.tet = tet;
-        this.synth = synth; // Store the selected synth instrument
+        this.synth = synth;
+
+        this.audioContext = Synth.audioContext;
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.gain.value = parseFloat(this.controls.volumeSlider.value);
+        this.gainNode.connect(this.audioContext.destination);
+
+        this.controls.volumeSlider.addEventListener('input', () => {
+            this.gainNode.gain.value = parseFloat(this.controls.volumeSlider.value);
+            this.controls.volumeLabel.innerText = `Volume: ${this.controls.volumeSlider.value}`;
+        });    
 
         this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
 
-        this.controls.volumeSlider.addEventListener('input', () => {
-            this.volume = parseFloat(this.controls.volumeSlider.value); // Update volume
-        });
+        this.renderGrid();
     }
 
     createGrid() {
         let grid = new Array(this.rows);
+        
         for (let i = 0; i < this.rows; i++) {
             grid[i] = new Array(this.cols).fill(0);
         }
+
         return grid;
     }
 
     randomizeGrid() {
-        const populate = document.getElementById('populate-automatas').checked;
-
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
                 this.grid[i][j] = Math.floor(Math.random() * 2); // Randomize every time
             }
         }
-        this.render();
+
+        this.renderGrid();
     }
 
-    render() {
+    renderGrid() {
         this.cellWidth = this.canvas.width / this.cols;
         this.cellHeight = this.canvas.height / this.rows;
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -226,7 +168,7 @@ class GameOfLife {
 
         this.previousGrid = JSON.parse(JSON.stringify(this.grid));
         this.grid = newGrid;
-        this.render();
+        this.renderGrid();
 
         const aliveCount = this.countAliveCells();
         const newbornCount = this.countNewbornCells();
@@ -261,26 +203,35 @@ class GameOfLife {
         let col = Math.floor(x / this.cellWidth);
         let row = Math.floor(y / this.cellHeight);
         this.grid[row][col] = this.grid[row][col] ? 0 : 1;
-        this.render();
+        this.renderGrid();
     }
 
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
-
-        const updateTempo = () => {
-            clearInterval(this.interval);
+    
+        const scheduleNextUpdate = () => {
             const baseTempo = parseInt(document.getElementById('tempo-slider').value);
             const speedMultiplier = parseFloat(this.controls.updateSpeedSlider.value);
             const interval = (60000 / baseTempo) * (1 / speedMultiplier);
-
-            this.interval = setInterval(() => this.updateGrid(), interval);
+    
+            const now = Date.now();
+            const timeUntilNextBeat = interval - (now % interval);
+    
+            this.interval = setTimeout(() => {
+                this.updateGrid();
+                if (this.isRunning) scheduleNextUpdate();
+            }, timeUntilNextBeat);
         };
-
-        document.getElementById('tempo-slider').addEventListener('input', updateTempo);
-        this.controls.updateSpeedSlider.addEventListener('input', updateTempo);
-
-        updateTempo(); // Initial start
+    
+        scheduleNextUpdate();
+    
+        this.controls.updateSpeedSlider.addEventListener('input', () => {
+            if (this.isRunning) {
+                clearTimeout(this.interval);
+                scheduleNextUpdate();
+            }
+        });
     }
 
     stop() {
@@ -390,7 +341,7 @@ class GameOfLife {
                     break;
             }
 
-            notesToPlay.forEach(frequency => this.synth.play(frequency, volume, 0.5));
+            notesToPlay.forEach(frequency => this.synth.play(frequency, 1.0, 0.5, this.gainNode));
         }
 
         // Log the frequencies to the console
@@ -412,7 +363,6 @@ class GameOfLife {
     }
 }
 
-// Function to update Key and Scale options based on selected TET
 function updateKeyAndScaleOptions() {
     const tet = document.getElementById('tet-select').value;
     const keySelect = document.getElementById('key-select');
@@ -452,7 +402,6 @@ function updateKeyAndScaleOptions() {
 // Call the function initially to populate options
 updateKeyAndScaleOptions();
 
-// Add event listener to TET selection dropdown
 document.getElementById('tet-select').addEventListener('change', updateKeyAndScaleOptions);
 
 let globalStartTimer;
@@ -484,6 +433,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     const scale = document.getElementById('scale-select').value;
     const synthName = document.getElementById('synth-select').value;
     const selectedSynth = synthInstruments[synthName];
+    const isPopulated = document.getElementById('populate-automatas').checked;
 
     if (simSize < 1 || simSize > 48) {
         alert('Please enter a simulation size between 1 and 25.');
@@ -644,9 +594,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     optionsArea.appendChild(deleteButton);
 
     rerandomizeButton.addEventListener('click', () => {
-        game.stop();
         game.randomizeGrid();
-        startOnDownbeat(game);
     });
 
     deleteButton.addEventListener('click', () => {
@@ -673,7 +621,10 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     };
 
     const game = new GameOfLife(simSize, simSize, canvas, counters, key, scale, container, controls, tet, selectedSynth);
-    game.randomizeGrid();
+
+    if (isPopulated) {
+        game.randomizeGrid();
+    }
 
     startButton.addEventListener('click', () => {
         startOnDownbeat(game);
@@ -685,7 +636,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     window.addEventListener('resize', () => {
         canvas.width = simArea.clientWidth;
         canvas.height = simArea.clientHeight;
-        game.render();
+        game.renderGrid();
     });
 });
 
