@@ -206,6 +206,7 @@ class GameOfLife {
         this.isRunning = false;
         clearTimeout(this.timeout);
     }
+    
     generateSound(mode) {
         const isStateBasedMode = this.controls.soundModeToggle.checked;
         const volume = parseFloat(this.controls.volumeSlider.value) || 0.5;
@@ -218,7 +219,7 @@ class GameOfLife {
             const newlyDeadCount = this.countNewlyDeadCells();
 
             const getFrequency = (count, octaveShift) => {
-                const scaleLength = scaleF// Clear any scheduled updatesrequencies.length;
+                const scaleLength = scaleFrequencies.length;
                 if (scaleLength === 0) return null;
                 const scaleRepeats = Math.floor(count / scaleLength);
                 const noteIndex = count % scaleLength;
@@ -280,7 +281,7 @@ class GameOfLife {
                                 playedFrequencies.push(freq);
                             }
                         }
-                    }rescheduleUpdates
+                    }
                     break;
                 case 'rightmost-alive':
                     for (let col = 0; col < this.cols; col++) {
