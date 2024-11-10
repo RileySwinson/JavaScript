@@ -1,65 +1,7 @@
-// Frequencies and Scales for Different TET Systems
-const frequencies = {
-    baseFrequencies: {
-        'C': 261.63,
-        'C#': 277.18,
-        'D': 293.66,
-        'D#': 311.13,
-        'E': 329.63,
-        'F': 349.23,
-        'F#': 369.99,
-        'G': 392.00,
-        'G#': 415.30,
-        'A': 440.00,
-        'A#': 466.16,
-        'B': 493.88,
-    },
-    scales: {
-        '12': {
-            major: [0, 2, 4, 5, 7, 9, 11],
-            minor: [0, 2, 3, 5, 7, 8, 10],
-            pentatonic: [0, 2, 4, 7, 9],
-            chromatic: [...Array(12).keys()],
-            blues: [0, 3, 5, 6, 7, 10]
-        },
-        '5': {
-            pentatonic: [0, 1, 2, 3, 4],
-            chromatic: [...Array(5).keys()]
-        },
-        '24': {
-            chromatic: [...Array(24).keys()]
-        },
-        '31': {
-            chromatic: [...Array(31).keys()]
-        },
-        '48': {
-            chromatic: [...Array(48).keys()]
-        }
-    },
-    getFrequencies: function(tet, key, scaleName) {
-        let baseFreq = 440.00; // Default base frequency
-
-        if (tet === '12' && this.baseFrequencies[key]) {
-            baseFreq = this.baseFrequencies[key];
-        } else if (key === 'A') {
-            baseFreq = 440.00;
-        }
-
-        let n = parseInt(tet);
-        let scale;
-
-        if (this.scales[tet] && this.scales[tet][scaleName]) {
-            scale = this.scales[tet][scaleName];
-        } else {
-            // Default to chromatic scale if scale not found
-            scale = [...Array(n).keys()];
-        }
-
-        return scale.map(step => {
-            return baseFreq * Math.pow(2, step / n);
-        });
-    }
-};
+// Use a shared AudioContext among all Synth instances
+if (!Synth.audioContext) {
+    Synth.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+}
 
 // Populate the "Select Synth" dropdown
 const synthSelect = document.getElementById('synth-select');
@@ -87,7 +29,7 @@ class GameOfLife {
         this.isRunning = false;
         this.controls = controls;
         this.tet = tet;
-        this.synth = synth;
+        this.synth = new Synth(synth);
 
         this.audioContext = Synth.audioContext;
         this.gainNode = this.audioContext.createGain();
@@ -96,10 +38,20 @@ class GameOfLife {
 
         this.controls.volumeSlider.addEventListener('input', () => {
             this.gainNode.gain.value = parseFloat(this.controls.volumeSlider.value);
-            this.controls.volumeLabel.innerText = `Volume: ${this.controls.volumeSlider.value}`;
-        });    
+        });
 
         this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
+
+        const rescheduleUpdates = () => {
+            if (this.isRunning) {
+                clearTimeout(this.timeout);
+                clearInterval(this.interval);
+                this.start(); 
+            }
+        };
+
+        this.controls.updateSpeedSlider.addEventListener('input', rescheduleUpdates);
+        this.controls.rhythmicOffsetSlider.addEventListener('input', rescheduleUpdates);
 
         this.renderGrid();
     }
@@ -215,30 +167,45 @@ class GameOfLife {
             const speedMultiplier = parseFloat(this.controls.updateSpeedSlider.value);
             const interval = (60000 / baseTempo) * (1 / speedMultiplier);
     
-            const now = Date.now();
-            const timeUntilNextBeat = interval - (now % interval);
+            const rhythmicOffsetBeats = parseFloat(this.controls.rhythmicOffsetSlider.value);
+            const rhythmicOffsetMs = rhythmicOffsetBeats * interval;
     
-            this.interval = setTimeout(() => {
+            // exact delay until the next update
+            const now = Date.now();
+            const timeSinceLastUpdate = now % interval;
+            let timeUntilNextUpdate = interval - timeSinceLastUpdate + rhythmicOffsetMs;
+    
+            if (timeUntilNextUpdate >= interval) {
+                timeUntilNextUpdate -= interval;
+            }
+    
+            // recursively schedule updates
+            this.timeout = setTimeout(() => {
                 this.updateGrid();
-                if (this.isRunning) scheduleNextUpdate();
-            }, timeUntilNextBeat);
+    
+                if (this.isRunning) {
+                    scheduleNextUpdate();
+                }
+            }, timeUntilNextUpdate);
         };
     
         scheduleNextUpdate();
     
-        this.controls.updateSpeedSlider.addEventListener('input', () => {
+        const rescheduleUpdates = () => {
             if (this.isRunning) {
-                clearTimeout(this.interval);
-                scheduleNextUpdate();
+                clearTimeout(this.timeout); 
+                scheduleNextUpdate();     
             }
-        });
+        };
+    
+        this.controls.updateSpeedSlider.addEventListener('input', rescheduleUpdates);
+        this.controls.rhythmicOffsetSlider.addEventListener('input', rescheduleUpdates);
     }
-
+    
     stop() {
         this.isRunning = false;
-        clearInterval(this.interval);
+        clearTimeout(this.timeout);
     }
-
     generateSound(mode) {
         const isStateBasedMode = this.controls.soundModeToggle.checked;
         const volume = parseFloat(this.controls.volumeSlider.value) || 0.5;
@@ -251,7 +218,7 @@ class GameOfLife {
             const newlyDeadCount = this.countNewlyDeadCells();
 
             const getFrequency = (count, octaveShift) => {
-                const scaleLength = scaleFrequencies.length;
+                const scaleLength = scaleF// Clear any scheduled updatesrequencies.length;
                 if (scaleLength === 0) return null;
                 const scaleRepeats = Math.floor(count / scaleLength);
                 const noteIndex = count % scaleLength;
@@ -284,7 +251,7 @@ class GameOfLife {
             const centerRow = Math.floor(this.rows / 2);
 
             const calculateFrequency = (row) => {
-                const relativeRow = row - centerRow;
+                const relativeRow = centerRow - row;
                 const notesPerOctave = scaleFrequencies.length;
                 const octaveShift = Math.floor(relativeRow / notesPerOctave);
                 const noteIndex = ((relativeRow % notesPerOctave) + notesPerOctave) % notesPerOctave;
@@ -313,7 +280,7 @@ class GameOfLife {
                                 playedFrequencies.push(freq);
                             }
                         }
-                    }
+                    }rescheduleUpdates
                     break;
                 case 'rightmost-alive':
                     for (let col = 0; col < this.cols; col++) {
@@ -425,7 +392,6 @@ function startOnDownbeat(gameInstance) {
         automataToStart.clear(); // Clear the set after starting all instances
     }, timeUntilNextBeat);
 }
-
 document.getElementById('add-simulation').addEventListener('click', function () {
     const simSize = parseInt(document.getElementById('sim-size').value);
     const tet = document.getElementById('tet-select').value;
@@ -513,13 +479,30 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     optionsArea.appendChild(updateSpeedLabel);
     optionsArea.appendChild(updateSpeedSlider);
 
+    const rhythmicOffsetSlider = document.createElement('input');
+    rhythmicOffsetSlider.type = 'range';
+    rhythmicOffsetSlider.min = '0';
+    rhythmicOffsetSlider.max = '1';
+    rhythmicOffsetSlider.step = '0.05';
+    rhythmicOffsetSlider.value = '0';
+    
+    const rhythmicOffsetLabel = document.createElement('label');
+    rhythmicOffsetLabel.innerText = 'Rhythmic Offset: 0';
+    
+    rhythmicOffsetSlider.addEventListener('input', () => {
+        rhythmicOffsetLabel.innerText = `Rhythmic Offset: ${rhythmicOffsetSlider.value}`;
+    });
+    
+    optionsArea.appendChild(rhythmicOffsetLabel);
+    optionsArea.appendChild(rhythmicOffsetSlider);
+
     const soundModeSelect = document.createElement('select');
     soundModeSelect.className = 'sound-mode-select';
     soundModeSelect.innerHTML = `
-        <option value="all-alive">Play All Alive Cells</option>
-        <option value="born-cells">Play Born Cells</option>
-        <option value="rightmost-alive">Play Rightmost Alive Cells</option>
         <option value="rightmost-born">Play Rightmost Born Cells</option>
+        <option value="rightmost-alive">Play Rightmost Alive Cells</option>
+        <option value="born-cells">Play Born Cells</option>
+        <option value="all-alive">Play All Alive Cells</option>
     `;
     optionsArea.appendChild(soundModeSelect);
 
@@ -617,7 +600,8 @@ document.getElementById('add-simulation').addEventListener('click', function () 
         newlyDeadSoundCheckbox: newlyDeadSoundCheckbox,
         newbornSoundCheckbox: newbornSoundCheckbox,
         updateSpeedSlider: updateSpeedSlider,
-        volumeSlider: volumeSlider
+        volumeSlider: volumeSlider,
+        rhythmicOffsetSlider: rhythmicOffsetSlider
     };
 
     const game = new GameOfLife(simSize, simSize, canvas, counters, key, scale, container, controls, tet, selectedSynth);

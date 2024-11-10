@@ -1,90 +1,105 @@
-const violinSynth = new Synth({
-    oscillators: [
-        { waveform: WaveformType.SAWTOOTH, detune: 0, volume: 0.6 },   // Base sawtooth for harmonic richness
-        { waveform: WaveformType.SINE, detune: 5, volume: 0.3 },       // Slightly detuned sine for warmth
-        { waveform: WaveformType.SINE, detune: -5, volume: 0.3 }       // Another slightly detuned sine for body
-    ],
-    filter: { 
-        type: "lowpass", 
-        frequency: 1200 // Softens the higher frequencies, simulating body resonance
-    },
-    attack: 0.05,     // Short attack to mimic the initial bowing sound
-    decay: 0.2,       // Quick decay to set sustain level
-    sustain: 0.8,     // Long sustain for steady bowing sound
-    release: 1.5      // Long release to simulate bow lifting from the string
-});
-
-
 const synthInstruments = {
-    'Bass Synth': new Synth({
+    'Sine Wave': {
+        oscillators: [{ waveform: WaveformType.SINE, detune: 0, volume: 1 }],
+        amplitudeEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.5 },
+        filter: null, filterEnvelope: null, lfo: null, unison: null
+    },
+    'Square Wave': {
+        oscillators: [{ waveform: WaveformType.SQUARE, detune: 0, volume: 1 }],
+        amplitudeEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5 },
+        filter: null, filterEnvelope: null, lfo: null, unison: null
+    },
+    'Sawtooth Wave': {
+        oscillators: [{ waveform: WaveformType.SAWTOOTH, detune: 0, volume: 1 }],
+        amplitudeEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.7, release: 0.5 },
+        filter: null, filterEnvelope: null, lfo: null, unison: null
+    },
+    'Triangle Wave': {
+        oscillators: [{ waveform: WaveformType.TRIANGLE, detune: 0, volume: 1 }],
+        amplitudeEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.5 },
+        filter: null, filterEnvelope: null, lfo: null, unison: null
+    },
+    'Pulse Wave': {
+        oscillators: [{ waveform: WaveformType.SQUARE, detune: 0, volume: 0.5 }],
+        lfo: { waveform: LFOWaveformType.SINE, frequency: 5, depth: 50, target: 'pulseWidth' },
+        amplitudeEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5 },
+        filter: null, filterEnvelope: null, unison: null
+    },
+    'SuperSaw': {
+        oscillators: [{ waveform: WaveformType.SAWTOOTH, detune: 0, volume: 1 }],
+        unison: { voices: 6, detune: 15 },
+        amplitudeEnvelope: { attack: 0.05, decay: 0.2, sustain: 0.7, release: 0.5 },
+        filter: null, filterEnvelope: null, lfo: null
+    },
+    'White Noise': {
+        oscillators: [{ waveform: WaveformType.NOISE, detune: 0, volume: 1 }],
+        amplitudeEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.5 },
+        filter: { type: FilterType.BANDPASS, frequency: 1000, resonance: 1 },
+        filterEnvelope: null, lfo: null, unison: null
+    },
+    'Piano': {
         oscillators: [
-            { waveform: 'square', volume: 0.5 },
-            { waveform: 'sawtooth', detune: -10, volume: 0.3 },
-            { waveform: 'sawtooth', detune: 10, volume: 0.3 }
+            { waveform: WaveformType.SINE, detune: 0, volume: 0.6 },
+            { waveform: WaveformType.TRIANGLE, detune: 0, volume: 0.3 },
+            { waveform: WaveformType.TRIANGLE, detune: 2, volume: 0.2 },
+            { waveform: WaveformType.SINE, detune: -1, volume: 0.15 }
         ],
-        instrumentFilter: { type: 'lowpass', frequency: 200 },
-        instrumentADSR: { attack: 0.05, decay: 0.2, sustain: 0.8, release: 0.5 }
-    }),
-    'Kick Drum': new Synth({
+        amplitudeEnvelope: { attack: 0.02, decay: 0.4, sustain: 0.6, release: 1.0 },
+        filter: { type: FilterType.LOWPASS, frequency: 1500, resonance: 1.5 },
+        filterEnvelope: { attack: 0.02, decay: 0.4, sustain: 1200, release: 1.5, maxFrequency: 2200 },
+        lfo: { waveform: LFOWaveformType.SINE, frequency: 0.05, depth: 2, target: 'frequency' }
+    },
+    'Bass': {
         oscillators: [
-            { waveform: 'sine', volume: 1.0 }
+            { waveform: WaveformType.SINE, detune: -2400, volume: 0.6 },
+            { waveform: WaveformType.TRIANGLE, detune: -2400, volume: 0.4 },
+            { waveform: WaveformType.SAWTOOTH, detune: -3100, volume: 0.1 },
+            { waveform: WaveformType.SAWTOOTH, detune: -1700, volume: 0.1 }
         ],
-        instrumentFilter: { type: 'lowpass', frequency: 100 },
-        instrumentADSR: { attack: 0, decay: 0.1, sustain: 0, release: 0.1 }
-    }),
-    'Snare Drum': new Synth({
+        amplitudeEnvelope: { attack: 0.005, decay: 0.2, sustain: 0.7, release: 0.3 },
+        filter: { type: FilterType.LOWPASS, frequency: 700, resonance: 1.8 },
+        filterEnvelope: { attack: 0.005, decay: 0.1, sustainFrequency: 700, peakFrequency: 1200, release: 0.3 },
+        lfo: { waveform: LFOWaveformType.SINE, rate: 1.5, depth: 5, target: 'frequency' },
+        effects: { distortion: { amount: 20 } },
+        velocitySensitivity: true
+    },
+    'Flute': {
         oscillators: [
-            { waveform: 'noise', volume: 1.0 }
+            { waveform: WaveformType.SINE, detune: 0, volume: 0.6 },
+            { waveform: WaveformType.TRIANGLE, detune: 0.2, volume: 0.4 },
+            { waveform: WaveformType.SINE, detune: 0.5, volume: 0.2 },
+            { waveform: WaveformType.NOISE, volume: 0.05 }
         ],
-        instrumentFilter: { type: 'highpass', frequency: 1000 },
-        instrumentADSR: { attack: 0, decay: 0.2, sustain: 0, release: 0.2 }
-    }),
-    'Cymbal': new Synth({
+        amplitudeEnvelope: { attack: 0.1, decay: 0.4, sustain: 0.75, release: 1.2 },
+        filter: { type: FilterType.LOWPASS, frequency: 1000, resonance: 1.0 },
+        filterEnvelope: { attack: 0.08, decay: 0.3, sustain: 800, release: 1.0, maxFrequency: 1200 },
+        lfo: { waveform: LFOWaveformType.SINE, frequency: 6.5, depth: 50, target: 'frequency' },
+        secondaryLFO: { waveform: LFOWaveformType.SINE, frequency: 0.1, depth: 5, targets: ['volume', 'filterCutoff'] },
+        noiseLFO: { waveform: LFOWaveformType.SINE, frequency: 0.3, depth: 0.05, target: 'volume' },
+        reverb: { type: 'hall', decay: 3.0, mix: 0.25 }
+    },
+    'Kick': {
         oscillators: [
-            { waveform: 'noise', volume: 1.0 }
+            { waveform: WaveformType.SINE, detune: -4800, volume: 1.0 },
+            { waveform: WaveformType.TRIANGLE, detune: -1700, volume: 0.8 },
+            { waveform: WaveformType.NOISE, detune: -2400, volume: 0.5 }
         ],
-        instrumentFilter: { type: 'highpass', frequency: 5000 },
-        instrumentADSR: { attack: 0, decay: 0.5, sustain: 0, release: 0.5 }
-    }),
-    'Piano Synth': new Synth({
+        amplitudeEnvelope: { attack: 0.001, decay: 0.2, sustain: 0.0, release: 0.2 },
+        pitchEnvelope: { attack: 0.005, decay: 0.1, sustain: 0.0, release: 0.05, startFrequency: 120, endFrequency: 40 },
+        harmonicPitchEnvelope: { attack: 0.005, decay: 0.08, sustain: 0.0, release: 0.1, startFrequency: 100, endFrequency: 40 },
+        noiseEnvelope: { attack: 0.001, decay: 0.03, sustain: 0.0, release: 0.03 },
+        filter: { type: FilterType.BANDPASS, frequency: 120, resonance: 3.0 },
+        distortion: { type: 'softclip', amount: 1.0 }
+    },
+    'Ambient Pad': {
         oscillators: [
-            { waveform: 'sine', detune: 0, volume: 0.5 },
-            { waveform: 'sine', detune: -5, volume: 0.3 },
-            { waveform: 'sine', detune: 5, volume: 0.3 }
+            { waveform: WaveformType.SAWTOOTH, detune: -5, volume: 0.5 },
+            { waveform: WaveformType.SAWTOOTH, detune: 5, volume: 0.5 }
         ],
-        instrumentADSR: { attack: 0.1, decay: 0.3, sustain: 0.5, release: 0.5 }
-    }),
-    'Default Synth': new Synth({
-        oscillators: [
-            { waveform: 'sine', volume: 1.0 }
-        ]
-    }),
-    'Square Wave Synth': new Synth({
-        oscillators: [
-            { waveform: 'square', volume: 1.0 }
-        ]
-    }),
-    'Sawtooth Synth': new Synth({
-        oscillators: [
-            { waveform: 'sawtooth', volume: 1.0 }
-        ]
-    }),
-    'Triangle Synth': new Synth({
-        oscillators: [
-            { waveform: 'triangle', volume: 1.0 }
-        ]
-    }),
-    'Smooth Synth': new Synth({
-        oscillators: [
-            { waveform: 'sine', volume: 1.0 }
-        ],
-        instrumentADSR: { attack: 0.2, decay: 0.1, sustain: 0.8, release: 1.0 }
-    }),
-    'Brassy Synth': new Synth({
-        oscillators: [
-            { waveform: 'sawtooth', volume: 1.0 }
-        ],
-        instrumentADSR: { attack: 0.05, decay: 0.3, sustain: 0.7, release: 0.5 }
-    }),
-    'Violin': violinSynth
+        amplitudeEnvelope: { attack: 2, decay: 1, sustain: 0.8, release: 2 },
+        filter: { type: FilterType.LOWPASS, frequency: 2000, resonance: 0.5 },
+        lfo: { waveform: LFOWaveformType.SINE, frequency: 0.1, depth: 500, target: 'filter' },
+        unison: { voices: 4, detune: 20 },
+        filterEnvelope: null
+    }
 };
