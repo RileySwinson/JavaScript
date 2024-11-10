@@ -26,8 +26,8 @@ class GameOfLife {
         this.scale = scale;
         this.container = container;
         this.previousGrid = this.createGrid();
-        this.isRunning = false;
-        this.controls = controls;
+        this.isRunning = false; 
+        this.controls = controls;   
         this.tet = tet;
         this.synth = new Synth(synth);
 
