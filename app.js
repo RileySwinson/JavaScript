@@ -1,3 +1,5 @@
+const GLOBAL_DOWNBEAT_TIME = new Date("2024-01-01T00:00:00Z").getTime();
+
 // Use a shared AudioContext among all Synth instances
 if (!Synth.audioContext) {
     Synth.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -409,20 +411,24 @@ let globalStartTimer;
 const automataToStart = new Set();
 
 function startOnDownbeat(gameInstance) {
-    automataToStart.add(gameInstance); // Add the instance to the set of automata to start
+    // Add the instance to the set of automata to start
+    automataToStart.add(gameInstance);
 
     if (globalStartTimer) clearTimeout(globalStartTimer);
 
     const baseTempo = parseInt(document.getElementById('tempo-slider').value);
     const msPerBeat = 60000 / baseTempo;
     const now = Date.now();
-    const timeUntilNextBeat = msPerBeat - (now % msPerBeat);
+    
+    // Calculate time until the next downbeat based on GLOBAL_DOWNBEAT_TIME
+    const timeSinceGlobalDownbeat = (now - GLOBAL_DOWNBEAT_TIME) % msPerBeat;
+    const timeUntilNextGlobalDownbeat = msPerBeat - timeSinceGlobalDownbeat;
 
+    // Schedule to start each automaton instance on the next downbeat
     globalStartTimer = setTimeout(() => {
-        // Start each automaton that needs to be synchronized
         automataToStart.forEach(instance => instance.start());
         automataToStart.clear(); // Clear the set after starting all instances
-    }, timeUntilNextBeat);
+    }, timeUntilNextGlobalDownbeat);
 }
 
 document.getElementById('add-simulation').addEventListener('click', function () {
@@ -499,7 +505,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     optionsArea.appendChild(volumeSlider);
 
     const updateSpeedSlider = document.createElement('input');
-    updateSpeedSlider.type = 'range'; 
+    updateSpeedSlider.type = 'range';
     updateSpeedSlider.min = '0.25';
     updateSpeedSlider.max = '4.0';
     updateSpeedSlider.step = '0.25';
