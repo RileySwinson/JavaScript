@@ -1,3 +1,18 @@
+let globalRhythmicOffset = 0;
+
+document.getElementById('global-offset-slider').addEventListener('input', function () {
+    globalRhythmicOffset = parseFloat(this.value);
+    document.getElementById('global-offset-value').innerText = this.value;
+
+    // No need for a set; just reschedule each running GameOfLife instance manually
+    document.querySelectorAll('.container').forEach(container => {
+        const gameInstance = container.gameInstance;
+        if (gameInstance && gameInstance.isRunning) {
+            gameInstance.rescheduleUpdates();
+        }
+    });
+});
+
 // Use a shared AudioContext among all Synth instances
 if (!Synth.audioContext) {
     Synth.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -194,19 +209,26 @@ class GameOfLife {
             const speedMultiplier = parseFloat(this.controls.updateSpeedSlider.value);
             const interval = (60000 / baseTempo) * (1 / speedMultiplier);
     
-            const rhythmicOffsetBeats = parseFloat(this.controls.rhythmicOffsetSlider.value);
-            const rhythmicOffsetMs = rhythmicOffsetBeats * interval;
+            // Calculate the combined rhythmic offset: individual + global
+            const individualOffsetBeats = parseFloat(this.controls.rhythmicOffsetSlider.value);
+            const globalOffsetBeats = parseFloat(document.getElementById('global-offset-slider').value);
+            const totalOffsetBeats = individualOffsetBeats + globalOffsetBeats;
+            const totalOffsetMs = totalOffsetBeats * interval;
     
-            // exact delay until the next update
+            // Calculate the exact delay until the next update
             const now = Date.now();
             const timeSinceLastUpdate = now % interval;
-            let timeUntilNextUpdate = interval - timeSinceLastUpdate + rhythmicOffsetMs;
+            let timeUntilNextUpdate = interval - timeSinceLastUpdate + totalOffsetMs;
     
+            // Adjust the timing if it overflows the interval
             if (timeUntilNextUpdate >= interval) {
                 timeUntilNextUpdate -= interval;
             }
+            if (timeUntilNextUpdate < 0) {
+                timeUntilNextUpdate += interval;
+            }
     
-            // recursively schedule updates
+            // Recursively schedule updates
             this.timeout = setTimeout(() => {
                 this.updateGrid();
     
@@ -218,17 +240,20 @@ class GameOfLife {
     
         scheduleNextUpdate();
     
+        // Define a function to reschedule updates whenever speed or offset changes
         const rescheduleUpdates = () => {
             if (this.isRunning) {
-                clearTimeout(this.timeout); 
-                scheduleNextUpdate();     
+                clearTimeout(this.timeout);
+                scheduleNextUpdate();
             }
         };
     
+        // Add listeners for changes in update speed, individual rhythmic offset, and global offset
         this.controls.updateSpeedSlider.addEventListener('input', rescheduleUpdates);
         this.controls.rhythmicOffsetSlider.addEventListener('input', rescheduleUpdates);
+        document.getElementById('global-offset-slider').addEventListener('input', rescheduleUpdates);
     }
-    
+
     stop() {
         this.isRunning = false;
         clearTimeout(this.timeout);
@@ -409,25 +434,29 @@ let globalStartTimer;
 const automataToStart = new Set();
 
 function startOnDownbeat(gameInstance) {
-    automataToStart.add(gameInstance); // Add the instance to the set of automata to start
-
-    if (globalStartTimer) clearTimeout(globalStartTimer);
-
+    // Calculate tempo and interval
     const baseTempo = parseInt(document.getElementById('tempo-slider').value);
     const msPerBeat = 60000 / baseTempo;
+
+    // Calculate next downbeat with global rhythmic offset
     const now = Date.now();
     const timeUntilNextBeat = msPerBeat - (now % msPerBeat);
+    const globalRhythmicOffsetMs = globalRhythmicOffset * msPerBeat;
 
-    // Calculate the offset in milliseconds based on the global rhythmic offset slider
-    const offsetInMs = globalRhythmicOffset * msPerBeat;
+    let totalTimeUntilStart = timeUntilNextBeat + globalRhythmicOffsetMs;
 
-    globalStartTimer = setTimeout(() => {
-        // Start each automaton that needs to be synchronized
-        automataToStart.forEach(instance => {
-            setTimeout(() => instance.start(), offsetInMs);
-        });
-        automataToStart.clear(); // Clear the set after starting all instances
-    }, timeUntilNextBeat);
+    // Adjust to fit within the beat interval if needed
+    if (totalTimeUntilStart >= msPerBeat) {
+        totalTimeUntilStart -= msPerBeat;
+    }
+    if (totalTimeUntilStart < 0) {
+        totalTimeUntilStart += msPerBeat;
+    }
+
+    // Start the instance on the calculated downbeat
+    setTimeout(() => {
+        gameInstance.start();
+    }, totalTimeUntilStart);
 }
 
 document.getElementById('add-simulation').addEventListener('click', function () {
@@ -586,7 +615,19 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     optionsArea.appendChild(soundModeToggleContainer);
 
     // New Sound Options for State-Based Mode
-    file:///home/riley/Documents/GameOfLife/JavaScriptGoL/game-of-music/index.html;
+    const newSoundOptionsContainer = document.createElement('div');
+    newSoundOptionsContainer.style.marginTop = '10px';
+
+    const aliveSoundCheckbox = document.createElement('input');
+    aliveSoundCheckbox.type = 'checkbox';
+    aliveSoundCheckbox.checked = true;
+    const aliveSoundLabel = document.createElement('label');
+    aliveSoundLabel.innerText = 'Play sound for total alive cells';
+    aliveSoundLabel.prepend(aliveSoundCheckbox);
+
+    const newlyDeadSoundCheckbox = document.createElement('input');
+    newlyDeadSoundCheckbox.type = 'checkbox';
+    newlyDeadSoundCheckbox.checked = true;
     const newlyDeadSoundLabel = document.createElement('label');
     newlyDeadSoundLabel.innerText = 'Play sound for newly dead cells';
     newlyDeadSoundLabel.prepend(newlyDeadSoundCheckbox);
@@ -678,13 +719,4 @@ document.getElementById('add-simulation').addEventListener('click', function () 
 document.getElementById('tempo-slider').addEventListener('input', function() {
     const tempo = document.getElementById('tempo-slider').value;
     document.getElementById('tempo-value').innerText = `${tempo} BPM`;
-});
-
-// Initialize global rhythmic offset
-let globalRhythmicOffset = 0;
-
-// Update the display and set the offset value
-document.getElementById('global-offset-slider').addEventListener('input', (event) => {
-    globalRhythmicOffset = parseFloat(event.target.value);
-    document.getElementById('global-offset-value').innerText = globalRhythmicOffset.toFixed(2);
 });
