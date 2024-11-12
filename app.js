@@ -12,29 +12,8 @@ for (let synthName in synthInstruments) {
     synthSelect.appendChild(option);
 }
 
-// Global time offset in milliseconds
-let timeOffset = 0;
-
-// Function to fetch NTP time offset using WorldTimeAPI
-async function getNTPTimeOffset() {
-    try {
-        const localRequestTime = Date.now();
-        const response = await fetch('http://worldtimeapi.org/api/timezone/Etc/UTC');
-        const data = await response.json();
-        const serverTime = new Date(data.datetime).getTime();
-        const localResponseTime = Date.now();
-        const rtt = localResponseTime - localRequestTime; // Round-trip time
-        const estimatedServerTime = serverTime + rtt / 2; // Estimate server time at response
-        timeOffset = estimatedServerTime - localResponseTime;
-        console.log("Time offset (ms):", timeOffset);
-    } catch (error) {
-        console.error("Failed to fetch NTP time offset:", error);
-    }
-}
-
 class GameOfLife {
-    constructor(rows, cols, canvas, counterElements, key, scale, container, controls, tet, synth, synthName) {
-        // code unchanged //
+    constructor(rows, cols, canvas, counterElements, key, scale, container, controls, tet, synth) {
         this.rows = rows;
         this.cols = cols;
         this.grid = this.createGrid();
@@ -51,9 +30,6 @@ class GameOfLife {
         this.controls = controls;   
         this.tet = tet;
         this.synth = new Synth(synth);
-        
-        // Store synthName for Instrument devices
-        this.synthName = synthName;
 
         this.audioContext = Synth.audioContext;
         this.gainNode = this.audioContext.createGain();
@@ -88,7 +64,6 @@ class GameOfLife {
     }
 
     createGrid() {
-        // code unchanged //
         let grid = new Array(this.rows);
         
         for (let i = 0; i < this.rows; i++) {
@@ -99,7 +74,6 @@ class GameOfLife {
     }
 
     randomizeGrid() {
-        // code unchanged //
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
                 this.grid[i][j] = Math.floor(Math.random() * 2); // Randomize every time
@@ -110,7 +84,6 @@ class GameOfLife {
     }
 
     renderGrid() {
-        // code unchanged //
         this.cellWidth = this.canvas.width / this.cols;
         this.cellHeight = this.canvas.height / this.rows;
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -189,7 +162,6 @@ class GameOfLife {
     }
 
     countLiveNeighbors(row, col) {
-        // code unchanged //
         let count = 0;
         for (let i = -1; i <= 1; i++) {
             for (let j = -1; j <= 1; j++) {
@@ -203,7 +175,6 @@ class GameOfLife {
     }
 
     handleCanvasClick(event) {
-        // code unchanged //
         if (this.isRunning) return;
         let rect = this.canvas.getBoundingClientRect();
         let x = event.clientX - rect.left;
@@ -226,8 +197,8 @@ class GameOfLife {
             const rhythmicOffsetBeats = parseFloat(this.controls.rhythmicOffsetSlider.value);
             const rhythmicOffsetMs = rhythmicOffsetBeats * interval;
     
-            // exact delay until the next update based on global time
-            const now = getSyncedTime();
+            // exact delay until the next update
+            const now = Date.now();
             const timeSinceLastUpdate = now % interval;
             let timeUntilNextUpdate = interval - timeSinceLastUpdate + rhythmicOffsetMs;
     
@@ -379,23 +350,19 @@ class GameOfLife {
     }
 
     countAliveCells() {
-        // code unchanged //
         return this.grid.flat().filter(cell => cell === 1).length;
     }
 
     countNewbornCells() {
-        // code unchanged //
         return this.grid.flat().filter((cell, index) => cell === 1 && this.previousGrid.flat()[index] === 0).length;
     }
 
     countNewlyDeadCells() {
-        // code unchanged //
         return this.grid.flat().filter((cell, index) => cell === 0 && this.previousGrid.flat()[index] === 1).length;
     }
 }
 
 function updateKeyAndScaleOptions() {
-    // code unchanged //
     const tet = document.getElementById('tet-select').value;
     const keySelect = document.getElementById('key-select');
     const scaleSelect = document.getElementById('scale-select');
@@ -441,11 +408,6 @@ let globalStartTimer;
 // Track automata that need to start on the next downbeat
 const automataToStart = new Set();
 
-// Function to get synchronized time using the global time offset
-function getSyncedTime() {
-    return Date.now() + timeOffset;
-}
-
 function startOnDownbeat(gameInstance) {
     automataToStart.add(gameInstance); // Add the instance to the set of automata to start
 
@@ -453,24 +415,22 @@ function startOnDownbeat(gameInstance) {
 
     const baseTempo = parseInt(document.getElementById('tempo-slider').value);
     const msPerBeat = 60000 / baseTempo;
-    const now = getSyncedTime();
+    const now = Date.now();
     const timeUntilNextBeat = msPerBeat - (now % msPerBeat);
+
+    // Calculate the offset in milliseconds based on the global rhythmic offset slider
+    const offsetInMs = globalRhythmicOffset * msPerBeat;
 
     globalStartTimer = setTimeout(() => {
         // Start each automaton that needs to be synchronized
-        automataToStart.forEach(instance => instance.start());
+        automataToStart.forEach(instance => {
+            setTimeout(() => instance.start(), offsetInMs);
+        });
         automataToStart.clear(); // Clear the set after starting all instances
     }, timeUntilNextBeat);
 }
 
-document.getElementById('add-simulation').addEventListener('click', async function () {
-    // Wait for the time offset to be fetched before allowing simulations
-    if (timeOffset === 0) {
-        await getNTPTimeOffset();
-        // Optionally, set an interval to periodically resync
-        setInterval(getNTPTimeOffset, 30000); // Resync every 30 seconds
-    }
-
+document.getElementById('add-simulation').addEventListener('click', function () {
     const simSize = parseInt(document.getElementById('sim-size').value);
     const tet = document.getElementById('tet-select').value;
     const key = document.getElementById('key-select').value;
@@ -626,19 +586,7 @@ document.getElementById('add-simulation').addEventListener('click', async functi
     optionsArea.appendChild(soundModeToggleContainer);
 
     // New Sound Options for State-Based Mode
-    const newSoundOptionsContainer = document.createElement('div');
-    newSoundOptionsContainer.style.marginTop = '10px';
-
-    const aliveSoundCheckbox = document.createElement('input');
-    aliveSoundCheckbox.type = 'checkbox';
-    aliveSoundCheckbox.checked = true;
-    const aliveSoundLabel = document.createElement('label');
-    aliveSoundLabel.innerText = 'Play sound for total alive cells';
-    aliveSoundLabel.prepend(aliveSoundCheckbox);
-
-    const newlyDeadSoundCheckbox = document.createElement('input');
-    newlyDeadSoundCheckbox.type = 'checkbox';
-    newlyDeadSoundCheckbox.checked = true;
+    file:///home/riley/Documents/GameOfLife/JavaScriptGoL/game-of-music/index.html;
     const newlyDeadSoundLabel = document.createElement('label');
     newlyDeadSoundLabel.innerText = 'Play sound for newly dead cells';
     newlyDeadSoundLabel.prepend(newlyDeadSoundCheckbox);
@@ -698,7 +646,7 @@ document.getElementById('add-simulation').addEventListener('click', async functi
         repetitionsSelect: repetitionsSelect
     };
 
-    const game = new GameOfLife(simSize, simSize, canvas, counters, key, scale, container, controls, tet, synthName);
+    const game = new GameOfLife(simSize, simSize, canvas, counters, key, scale, container, controls, tet, selectedSynth);
 
     if (isPopulated) {
         game.randomizeGrid();
@@ -732,14 +680,11 @@ document.getElementById('tempo-slider').addEventListener('input', function() {
     document.getElementById('tempo-value').innerText = `${tempo} BPM`;
 });
 
-// Initialize time synchronization on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    await getNTPTimeOffset(); // Fetch initial time offset
-    // Optionally, set an interval to periodically resync
-    setInterval(getNTPTimeOffset, 30000); // Resync every 30 seconds
-});
+// Initialize global rhythmic offset
+let globalRhythmicOffset = 0;
 
-// Function to get synchronized time using the global time offset
-function getSyncedTime() {
-    return Date.now() + timeOffset;
-}
+// Update the display and set the offset value
+document.getElementById('global-offset-slider').addEventListener('input', (event) => {
+    globalRhythmicOffset = parseFloat(event.target.value);
+    document.getElementById('global-offset-value').innerText = globalRhythmicOffset.toFixed(2);
+});
