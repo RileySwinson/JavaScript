@@ -499,9 +499,9 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     optionsArea.appendChild(volumeSlider);
 
     const updateSpeedSlider = document.createElement('input');
-    updateSpeedSlider.type = 'range';
+    updateSpeedSlider.type = 'range'; 
     updateSpeedSlider.min = '0.25';
-    updateSpeedSlider.max = '3.0';
+    updateSpeedSlider.max = '4.0';
     updateSpeedSlider.step = '0.25';
     updateSpeedSlider.value = '1.0';
 
