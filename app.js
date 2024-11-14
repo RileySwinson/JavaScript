@@ -1,10 +1,14 @@
 let globalRhythmicOffset = 0;
 
+// Unique identifier for sliders to prevent ID conflicts
+let sliderIdCounter = 0;
+
+// Global Offset Slider Event Listener
 document.getElementById('global-offset-slider').addEventListener('input', function () {
     globalRhythmicOffset = parseFloat(this.value);
     document.getElementById('global-offset-value').innerText = this.value;
 
-    // No need for a set; just reschedule each running GameOfLife instance manually
+    // Reschedule updates for each running GameOfLife instance
     document.querySelectorAll('.container').forEach(container => {
         const gameInstance = container.gameInstance;
         if (gameInstance && gameInstance.isRunning) {
@@ -13,7 +17,7 @@ document.getElementById('global-offset-slider').addEventListener('input', functi
     });
 });
 
-// Use a shared AudioContext among all Synth instances
+// Shared AudioContext among all Synth instances
 if (!Synth.audioContext) {
     Synth.audioContext = new (window.AudioContext || window.webkitAudioContext)();
 }
@@ -27,6 +31,7 @@ for (let synthName in synthInstruments) {
     synthSelect.appendChild(option);
 }
 
+// GameOfLife Class Definition
 class GameOfLife {
     constructor(rows, cols, canvas, counterElements, key, scale, container, controls, tet, synth) {
         this.rows = rows;
@@ -40,6 +45,7 @@ class GameOfLife {
         this.key = key;
         this.scale = scale;
         this.container = container;
+        this.container.gameInstance = this;
         this.previousGrid = this.createGrid();
         this.isRunning = false; 
         this.controls = controls;   
@@ -51,12 +57,16 @@ class GameOfLife {
         this.gainNode.gain.value = parseFloat(this.controls.volumeSlider.value);
         this.gainNode.connect(this.audioContext.destination);
 
+        // Volume Slider Event Listener
         this.controls.volumeSlider.addEventListener('input', () => {
             this.gainNode.gain.value = parseFloat(this.controls.volumeSlider.value);
+            this.controls.volumeValue.innerText = this.controls.volumeSlider.value;
         });
 
+        // Canvas Click Event Listener
         this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
 
+        // Reschedule Updates on Speed or Offset Change
         const rescheduleUpdates = () => {
             if (this.isRunning) {
                 clearTimeout(this.timeout);
@@ -67,13 +77,16 @@ class GameOfLife {
         this.controls.updateSpeedSlider.addEventListener('input', rescheduleUpdates);
         this.controls.rhythmicOffsetSlider.addEventListener('input', rescheduleUpdates);
 
-        // Initialize repetitions
+        // Initialize Repetitions
         this.numRepetitions = parseInt(this.controls.repetitionsSelect.value) || 1;
         this.currentRepetition = 0;
 
         this.controls.repetitionsSelect.addEventListener('change', () => {
             this.numRepetitions = parseInt(this.controls.repetitionsSelect.value) || 1;
         });
+
+        // Initialize Volume Value Display
+        this.controls.volumeValue.innerText = this.controls.volumeSlider.value;
 
         this.renderGrid();
     }
@@ -91,7 +104,7 @@ class GameOfLife {
     randomizeGrid() {
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
-                this.grid[i][j] = Math.floor(Math.random() * 2); // Randomize every time
+                this.grid[i][j] = Math.floor(Math.random() * 2);
             }
         }
 
@@ -109,9 +122,9 @@ class GameOfLife {
                 let previousState = this.previousGrid[i][j];
 
                 if (currentState === 1) {
-                    this.context.fillStyle = previousState === 0 ? '#00ff00' : '#000000'; // Green for born cells, black for alive cells
+                    this.context.fillStyle = previousState === 0 ? '#00ff00' : '#000000';
                 } else {
-                    this.context.fillStyle = previousState === 1 ? '#ff0000' : '#ffffff'; // Red for newly dead cells, white for dead cells
+                    this.context.fillStyle = previousState === 1 ? '#ff0000' : '#ffffff';
                 }
 
                 this.context.fillRect(j * this.cellWidth, i * this.cellHeight, this.cellWidth, this.cellHeight);
@@ -125,14 +138,13 @@ class GameOfLife {
         this.currentRepetition++;
     
         const isStateBasedMode = this.controls.soundModeToggle.checked;
-        const selectedMode = this.controls.soundModeSelect.value;
+        const selectedMode = this.controls.musicGenSelect.value;
 
         if (this.currentRepetition < this.numRepetitions) {
-            // Generate sound without updating the grid
             if (isStateBasedMode) {
-                this.generateSound(); // No mode needed for state-based
+                this.generateSound();
             } else {
-                this.generateSound(selectedMode); // Pass the selected mode
+                this.generateSound(selectedMode);
             }
             return;
         } else {
@@ -146,13 +158,13 @@ class GameOfLife {
                 let liveNeighbors = this.countLiveNeighbors(i, j);
                 let currentState = this.grid[i][j];
                 let newState;
-    
+
                 if (currentState === 1) {
                     newState = (liveNeighbors < 2 || liveNeighbors > 3) ? 0 : 1;
                 } else {
                     newState = (liveNeighbors === 3) ? 1 : 0;
                 }
-    
+
                 newGrid[i][j] = newState;
             }
         }
@@ -167,12 +179,12 @@ class GameOfLife {
     
         this.counterElements.alive.innerText = `Alive: ${aliveCount}`;
         this.counterElements.newborn.innerText = `Newborn: ${newbornCount}`;
-        this.counterElements.newlyDead.innerText = `Newly Dead: ${newlyDeadCount}`;
+        this.counterElements.newlyDead.innerText = `Died: ${newlyDeadCount}`;
     
         if (isStateBasedMode) {
-            this.generateSound(); // No mode needed for state-based
+            this.generateSound();
         } else {
-            this.generateSound(selectedMode); // Pass the selected mode
+            this.generateSound(selectedMode);
         }
     }
 
@@ -278,21 +290,21 @@ class GameOfLife {
                 return scaleFrequencies[noteIndex] * Math.pow(2, scaleRepeats + octaveShift);
             };
 
-            if (this.controls.aliveSoundCheckbox.checked && aliveCount > 0) {
+            if (this.controls.aliveCheckbox.checked && aliveCount > 0) {
                 const freq = getFrequency(aliveCount, -2);
                 if (freq) {
                     this.synth.play(freq, volume, 0.5);
                     playedFrequencies.push(freq);
                 }
             }
-            if (this.controls.newlyDeadSoundCheckbox.checked && newlyDeadCount > 0) {
+            if (this.controls.newlyDeadCheckbox.checked && newlyDeadCount > 0) {
                 const freq = getFrequency(newlyDeadCount, -2);
                 if (freq) {
                     this.synth.play(freq, volume, 0.5);
                     playedFrequencies.push(freq);
                 }
             }
-            if (this.controls.newbornSoundCheckbox.checked && newbornCount > 0) {
+            if (this.controls.newbornCheckbox.checked && newbornCount > 0) {
                 const freq = getFrequency(newbornCount, 0);
                 if (freq) {
                     this.synth.play(freq, volume, 0.5);
@@ -385,8 +397,17 @@ class GameOfLife {
     countNewlyDeadCells() {
         return this.grid.flat().filter((cell, index) => cell === 0 && this.previousGrid.flat()[index] === 1).length;
     }
+
+    // Method to reschedule updates (used when global offset changes)
+    rescheduleUpdates() {
+        if (this.isRunning) {
+            clearTimeout(this.timeout);
+            this.start();
+        }
+    }
 }
 
+// Function to update Key and Scale options based on TET selection
 function updateKeyAndScaleOptions() {
     const tet = document.getElementById('tet-select').value;
     const keySelect = document.getElementById('key-select');
@@ -423,29 +444,23 @@ function updateKeyAndScaleOptions() {
     }
 }
 
-// Call the function initially to populate options
+// Initialize Key and Scale options
 updateKeyAndScaleOptions();
 
+// Event Listener for TET Selection Change
 document.getElementById('tet-select').addEventListener('change', updateKeyAndScaleOptions);
 
-let globalStartTimer;
-
-// Track automata that need to start on the next downbeat
-const automataToStart = new Set();
-
+// Function to start automaton on the next downbeat
 function startOnDownbeat(gameInstance) {
-    // Calculate tempo and interval
     const baseTempo = parseInt(document.getElementById('tempo-slider').value);
     const msPerBeat = 60000 / baseTempo;
 
-    // Calculate next downbeat with global rhythmic offset
     const now = Date.now();
     const timeUntilNextBeat = msPerBeat - (now % msPerBeat);
     const globalRhythmicOffsetMs = globalRhythmicOffset * msPerBeat;
 
     let totalTimeUntilStart = timeUntilNextBeat + globalRhythmicOffsetMs;
 
-    // Adjust to fit within the beat interval if needed
     if (totalTimeUntilStart >= msPerBeat) {
         totalTimeUntilStart -= msPerBeat;
     }
@@ -453,12 +468,12 @@ function startOnDownbeat(gameInstance) {
         totalTimeUntilStart += msPerBeat;
     }
 
-    // Start the instance on the calculated downbeat
     setTimeout(() => {
         gameInstance.start();
     }, totalTimeUntilStart);
 }
 
+// Add Simulation Event Listener
 document.getElementById('add-simulation').addEventListener('click', function () {
     const simSize = parseInt(document.getElementById('sim-size').value);
     const tet = document.getElementById('tet-select').value;
@@ -485,66 +500,159 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     const optionsArea = document.createElement('div');
     optionsArea.className = 'options-area';
 
-    const keyLabel = document.createElement('span');
-    const scaleLabel = document.createElement('span');
-    keyLabel.innerText = `Key: ${key}`;
-    scaleLabel.innerText = `Scale: ${scale}`;
-    optionsArea.appendChild(keyLabel);
-    optionsArea.appendChild(scaleLabel);
-
-    // Display the selected synth instrument in the options area
-    const synthLabel = document.createElement('span');
-    synthLabel.innerText = `Synth: ${synthName}`;
-    optionsArea.appendChild(synthLabel);
-
-    const aliveCountLabel = document.createElement('span');
-    const newbornCountLabel = document.createElement('span');
-    const newlyDeadCountLabel = document.createElement('span');
-
-    const counters = { alive: aliveCountLabel, newborn: newbornCountLabel, newlyDead: newlyDeadCountLabel };
-    aliveCountLabel.innerText = 'Alive: 0';
-    newbornCountLabel.innerText = 'Newborn: 0';
-    newlyDeadCountLabel.innerText = 'Newly Dead: 0';
-
-    optionsArea.appendChild(aliveCountLabel);
-    optionsArea.appendChild(newbornCountLabel);
-    optionsArea.appendChild(newlyDeadCountLabel);
+    // Control Icons Container
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'buttons-container';
 
     const startButton = document.createElement('button');
-    startButton.innerText = 'Start Simulation';
-    optionsArea.appendChild(startButton);
+    startButton.className = 'icon-button';
+    startButton.innerHTML = '&#9658;'; // Play icon
 
     const stopButton = document.createElement('button');
-    stopButton.innerText = 'Stop Simulation';
-    optionsArea.appendChild(stopButton);
+    stopButton.className = 'icon-button';
+    stopButton.innerHTML = '&#10074;&#10074;'; // Pause icon
+
+    const rerandomizeButton = document.createElement('button');
+    rerandomizeButton.className = 'icon-button';
+    rerandomizeButton.innerHTML = '&#8635;'; // Re-randomize icon
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'icon-button';
+    deleteButton.innerHTML = '&#128465;'; // Trashcan icon
+
+    buttonsContainer.appendChild(startButton);
+    buttonsContainer.appendChild(stopButton);
+    buttonsContainer.appendChild(rerandomizeButton);
+    buttonsContainer.appendChild(deleteButton);
+
+    // Two Columns Container
+    const twoColumnsContainer = document.createElement('div');
+    twoColumnsContainer.className = 'two-columns-container';
+
+    // Column 1: Key, Scale, Synth
+    const column1 = document.createElement('div');
+    column1.className = 'column';
+
+    const keyLabel = document.createElement('div');
+    keyLabel.className = 'info-label';
+    keyLabel.innerText = `Key: ${key}`;
+
+    const scaleLabel = document.createElement('div');
+    scaleLabel.className = 'info-label';
+    scaleLabel.innerText = `Scale: ${scale}`;
+
+    const synthLabel = document.createElement('div');
+    synthLabel.className = 'info-label';
+    synthLabel.innerText = `Synth: ${synthName}`;
+
+    column1.appendChild(keyLabel);
+    column1.appendChild(scaleLabel);
+    column1.appendChild(synthLabel);
+
+    // Column 2: Alive, Newborn, Died
+    const column2 = document.createElement('div');
+    column2.className = 'column';
+
+    const aliveLabel = document.createElement('div');
+    aliveLabel.className = 'counter-label';
+    aliveLabel.innerText = 'Alive: 0';
+
+    const newbornLabel = document.createElement('div');
+    newbornLabel.className = 'counter-label';
+    newbornLabel.innerText = 'Newborn: 0';
+
+    const diedLabel = document.createElement('div');
+    diedLabel.className = 'counter-label';
+    diedLabel.innerText = 'Died: 0';
+
+    column2.appendChild(aliveLabel);
+    column2.appendChild(newbornLabel);
+    column2.appendChild(diedLabel);
+
+    twoColumnsContainer.appendChild(column1);
+    twoColumnsContainer.appendChild(column2);
+
+    // Sliders and Other Controls
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'controls-container';
+
+    // Volume Slider
+    const volumeContainer = document.createElement('div');
+    volumeContainer.className = 'slider-container';
+
+    const volumeHeader = document.createElement('div');
+    volumeHeader.className = 'slider-header';
+
+    const volumeLabel = document.createElement('label');
+    volumeLabel.innerText = 'Volume:';
+    volumeLabel.setAttribute('for', `volume-slider-${sliderIdCounter}`);
+
+    const volumeValue = document.createElement('span');
+    volumeValue.className = 'slider-value';
+    volumeValue.innerText = '0.5';
+
+    volumeHeader.appendChild(volumeLabel);
+    volumeHeader.appendChild(volumeValue);
 
     const volumeSlider = document.createElement('input');
     volumeSlider.type = 'range';
     volumeSlider.min = '0';
     volumeSlider.max = '1';
-    volumeSlider.step = '0.1';
+    volumeSlider.step = '0.01';
     volumeSlider.value = '0.5';
+    volumeSlider.id = `volume-slider-${sliderIdCounter}`;
+    sliderIdCounter++;
 
-    const volumeLabel = document.createElement('label');
-    volumeLabel.innerText = 'Volume: 0.5';
-    volumeSlider.addEventListener('input', () => volumeLabel.innerText = `Volume: ${volumeSlider.value}`);
+    volumeContainer.appendChild(volumeHeader);
+    volumeContainer.appendChild(volumeSlider);
 
-    optionsArea.appendChild(volumeLabel);
-    optionsArea.appendChild(volumeSlider);
+    // Update Speed Slider
+    const updateSpeedContainer = document.createElement('div');
+    updateSpeedContainer.className = 'slider-container';
+
+    const updateSpeedHeader = document.createElement('div');
+    updateSpeedHeader.className = 'slider-header';
+
+    const updateSpeedLabel = document.createElement('label');
+    updateSpeedLabel.innerText = 'Update Speed:';
+    updateSpeedLabel.setAttribute('for', `update-speed-slider-${sliderIdCounter}`);
+
+    const updateSpeedValue = document.createElement('span');
+    updateSpeedValue.className = 'slider-value';
+    updateSpeedValue.innerText = '1.0';
+
+    updateSpeedHeader.appendChild(updateSpeedLabel);
+    updateSpeedHeader.appendChild(updateSpeedValue);
 
     const updateSpeedSlider = document.createElement('input');
     updateSpeedSlider.type = 'range';
     updateSpeedSlider.min = '0.25';
-    updateSpeedSlider.max = '4.0';
+    updateSpeedSlider.max = '4';
     updateSpeedSlider.step = '0.25';
-    updateSpeedSlider.value = '1.0';
+    updateSpeedSlider.value = '1';
+    updateSpeedSlider.id = `update-speed-slider-${sliderIdCounter}`;
+    sliderIdCounter++;
 
-    const updateSpeedLabel = document.createElement('label');
-    updateSpeedLabel.innerText = 'Update Speed: 1x';
-    updateSpeedSlider.addEventListener('input', () => updateSpeedLabel.innerText = `Update Speed: ${updateSpeedSlider.value}x`);
+    updateSpeedContainer.appendChild(updateSpeedHeader);
+    updateSpeedContainer.appendChild(updateSpeedSlider);
 
-    optionsArea.appendChild(updateSpeedLabel);
-    optionsArea.appendChild(updateSpeedSlider);
+    // Rhythmic Offset Slider
+    const rhythmicOffsetContainer = document.createElement('div');
+    rhythmicOffsetContainer.className = 'slider-container';
+
+    const rhythmicOffsetHeader = document.createElement('div');
+    rhythmicOffsetHeader.className = 'slider-header';
+
+    const rhythmicOffsetLabel = document.createElement('label');
+    rhythmicOffsetLabel.innerText = 'Rhythmic Offset:';
+    rhythmicOffsetLabel.setAttribute('for', `rhythmic-offset-slider-${sliderIdCounter}`);
+
+    const rhythmicOffsetValue = document.createElement('span');
+    rhythmicOffsetValue.className = 'slider-value';
+    rhythmicOffsetValue.innerText = '0.00';
+
+    rhythmicOffsetHeader.appendChild(rhythmicOffsetLabel);
+    rhythmicOffsetHeader.appendChild(rhythmicOffsetValue);
 
     const rhythmicOffsetSlider = document.createElement('input');
     rhythmicOffsetSlider.type = 'range';
@@ -552,170 +660,223 @@ document.getElementById('add-simulation').addEventListener('click', function () 
     rhythmicOffsetSlider.max = '1';
     rhythmicOffsetSlider.step = '0.05';
     rhythmicOffsetSlider.value = '0';
-    
-    const rhythmicOffsetLabel = document.createElement('label');
-    rhythmicOffsetLabel.innerText = 'Rhythmic Offset: 0';
-    
-    rhythmicOffsetSlider.addEventListener('input', () => {
-        rhythmicOffsetLabel.innerText = `Rhythmic Offset: ${rhythmicOffsetSlider.value}`;
-    });
-    
-    optionsArea.appendChild(rhythmicOffsetLabel);
-    optionsArea.appendChild(rhythmicOffsetSlider);
+    rhythmicOffsetSlider.id = `rhythmic-offset-slider-${sliderIdCounter}`;
+    sliderIdCounter++;
 
-    // Number of Repetitions Control
+    rhythmicOffsetContainer.appendChild(rhythmicOffsetHeader);
+    rhythmicOffsetContainer.appendChild(rhythmicOffsetSlider);
+
+    controlsContainer.appendChild(volumeContainer);
+    controlsContainer.appendChild(updateSpeedContainer);
+    controlsContainer.appendChild(rhythmicOffsetContainer);
+
+    // Number of Repetitions
+    const repetitionsContainer = document.createElement('div');
+    repetitionsContainer.className = 'repetitions-container';
+
     const repetitionsLabel = document.createElement('label');
-    repetitionsLabel.innerText = 'Number of Repetitions: ';
-    repetitionsLabel.style.display = 'block';
-    repetitionsLabel.style.marginTop = '10px';
+    repetitionsLabel.innerText = 'Number of Repetitions:';
+    repetitionsLabel.setAttribute('for', 'repetitions-select');
 
     const repetitionsSelect = document.createElement('select');
-
+    repetitionsSelect.id = 'repetitions-select';
     for (let i = 1; i <= 10; i++) {
-        const option = document.createElement('option');
+        let option = document.createElement('option');
         option.value = i;
         option.text = i;
         repetitionsSelect.appendChild(option);
     }
 
-    repetitionsLabel.appendChild(repetitionsSelect);
-    optionsArea.appendChild(repetitionsLabel);
+    repetitionsContainer.appendChild(repetitionsLabel);
+    repetitionsContainer.appendChild(repetitionsSelect);
 
-    // Sound Mode Selection
-    const soundModeSelect = document.createElement('select');
-    soundModeSelect.className = 'sound-mode-select';
-    soundModeSelect.innerHTML = `
-        <option value="rightmost-born">Play Rightmost Born Cells</option>
-        <option value="rightmost-alive">Play Rightmost Alive Cells</option>
-        <option value="born-cells">Play Born Cells</option>
-        <option value="all-alive">Play All Alive Cells</option>
-    `;
-    soundModeSelect.style.display = 'block';
-    soundModeSelect.style.marginTop = '10px';
-    optionsArea.appendChild(soundModeSelect);
+    controlsContainer.appendChild(repetitionsContainer);
 
-    // Sound Mode Toggle
-    const soundModeToggleContainer = document.createElement('div');
-    soundModeToggleContainer.style.display = 'flex';
-    soundModeToggleContainer.style.alignItems = 'center';
-    soundModeToggleContainer.style.marginTop = '10px';
+    // Music Generation Types Dropdown
+    const musicGenContainer = document.createElement('div');
+    musicGenContainer.className = 'music-gen-container';
 
-    const soundModeToggle = document.createElement('input');
-    soundModeToggle.type = 'checkbox';
-    soundModeToggle.id = `soundModeToggle-${Date.now()}`;
-    soundModeToggle.checked = false;
+    const musicGenLabel = document.createElement('label');
+    musicGenLabel.innerText = 'Music Generation Type:';
+    musicGenLabel.setAttribute('for', `music-gen-select-${sliderIdCounter}`);
 
-    const soundModeLabel = document.createElement('label');
-    soundModeLabel.innerText = 'Use state counts to generate audio';
-    soundModeLabel.setAttribute('for', soundModeToggle.id);
-    soundModeLabel.style.marginLeft = '5px';
+    const musicGenSelect = document.createElement('select');
+    musicGenSelect.id = `music-gen-select-${sliderIdCounter}`;
+    sliderIdCounter++;
+    const musicGenOptions = [
+        { value: 'rightmost-born', text: 'Rightmost Born' },
+        { value: 'rightmost-alive', text: 'Rightmost Alive' },
+        { value: 'born-cells', text: 'Born Cells' },
+        { value: 'all-alive', text: 'All Alive' }
+    ];
+    musicGenOptions.forEach(opt => {
+        let option = document.createElement('option');
+        option.value = opt.value;
+        option.text = opt.text;
+        musicGenSelect.appendChild(option);
+    });
 
-    soundModeToggleContainer.appendChild(soundModeToggle);
-    soundModeToggleContainer.appendChild(soundModeLabel);
-    optionsArea.appendChild(soundModeToggleContainer);
+    musicGenContainer.appendChild(musicGenLabel);
+    musicGenContainer.appendChild(musicGenSelect);
 
-    // New Sound Options for State-Based Mode
-    const newSoundOptionsContainer = document.createElement('div');
-    newSoundOptionsContainer.style.marginTop = '10px';
+    controlsContainer.appendChild(musicGenContainer);
 
-    const aliveSoundCheckbox = document.createElement('input');
-    aliveSoundCheckbox.type = 'checkbox';
-    aliveSoundCheckbox.checked = true;
-    const aliveSoundLabel = document.createElement('label');
-    aliveSoundLabel.innerText = 'Play sound for total alive cells';
-    aliveSoundLabel.prepend(aliveSoundCheckbox);
+    // Use State Count Checkbox
+    const stateCountContainer = document.createElement('div');
+    stateCountContainer.className = 'state-count-container';
 
-    const newlyDeadSoundCheckbox = document.createElement('input');
-    newlyDeadSoundCheckbox.type = 'checkbox';
-    newlyDeadSoundCheckbox.checked = true;
-    const newlyDeadSoundLabel = document.createElement('label');
-    newlyDeadSoundLabel.innerText = 'Play sound for newly dead cells';
-    newlyDeadSoundLabel.prepend(newlyDeadSoundCheckbox);
+    const stateCountCheckbox = document.createElement('input');
+    stateCountCheckbox.type = 'checkbox';
+    stateCountCheckbox.id = `state-count-checkbox-${sliderIdCounter}`;
 
-    const newbornSoundCheckbox = document.createElement('input');
-    newbornSoundCheckbox.type = 'checkbox';
-    newbornSoundCheckbox.checked = true;
-    const newbornSoundLabel = document.createElement('label');
-    newbornSoundLabel.innerText = 'Play sound for newly alive cells';
-    newbornSoundLabel.prepend(newbornSoundCheckbox);
+    const stateCountLabel = document.createElement('label');
+    stateCountLabel.setAttribute('for', `state-count-checkbox-${sliderIdCounter}`);
+    stateCountLabel.innerText = 'Use state count to generate music';
 
-    newSoundOptionsContainer.append(aliveSoundLabel, newlyDeadSoundLabel, newbornSoundLabel);
-    optionsArea.appendChild(newSoundOptionsContainer);
+    stateCountContainer.appendChild(stateCountCheckbox);
+    stateCountContainer.appendChild(stateCountLabel);
 
-    const updateNewSoundOptionsState = () => {
-        const isChecked = soundModeToggle.checked;
-        aliveSoundCheckbox.disabled = !isChecked;
-        newlyDeadSoundCheckbox.disabled = !isChecked;
-        newbornSoundCheckbox.disabled = !isChecked;
-        soundModeSelect.disabled = isChecked;
-    };
+    controlsContainer.appendChild(stateCountContainer);
 
-    soundModeToggle.addEventListener('change', updateNewSoundOptionsState);
-    updateNewSoundOptionsState();
+    // Play Sound For: Checkboxes
+    const playSoundForContainer = document.createElement('div');
+    playSoundForContainer.className = 'play-sound-for-container';
 
-    // Rerandomize and Delete Buttons
-    const rerandomizeButton = document.createElement('button');
-    rerandomizeButton.innerText = 'Re-randomize Automaton';
-    rerandomizeButton.className = 'rerandomize-button';
-    rerandomizeButton.style.display = 'block';
-    rerandomizeButton.style.marginTop = '10px';
-    optionsArea.appendChild(rerandomizeButton);
+    const playSoundForLabel = document.createElement('div');
+    playSoundForLabel.className = 'play-sound-for-label';
+    playSoundForLabel.innerText = 'Play sound for:';
 
-    const deleteButton = document.createElement('button');
-    deleteButton.innerText = 'Delete Simulation';
-    deleteButton.className = 'delete-button';
-    deleteButton.style.display = 'block';
-    deleteButton.style.marginTop = '10px';
-    optionsArea.appendChild(deleteButton);
+    // Total Alive Cells Checkbox
+    const aliveCheckboxContainer = document.createElement('label');
+    aliveCheckboxContainer.className = 'checkbox-container';
+
+    const aliveCheckbox = document.createElement('input');
+    aliveCheckbox.type = 'checkbox';
+    aliveCheckbox.id = `alive-checkbox-${sliderIdCounter}`;
+    aliveCheckbox.disabled = !stateCountCheckbox.checked;
+
+    const aliveCheckboxLabel = document.createElement('span');
+    aliveCheckboxLabel.innerText = 'Total Alive Cells';
+
+    aliveCheckboxContainer.appendChild(aliveCheckbox);
+    aliveCheckboxContainer.appendChild(aliveCheckboxLabel);
+
+    // Newly Dead Cells Checkbox
+    const newlyDeadCheckboxContainer = document.createElement('label');
+    newlyDeadCheckboxContainer.className = 'checkbox-container';
+
+    const newlyDeadCheckbox = document.createElement('input');
+    newlyDeadCheckbox.type = 'checkbox';
+    newlyDeadCheckbox.id = `newly-dead-checkbox-${sliderIdCounter}`;
+    newlyDeadCheckbox.disabled = !stateCountCheckbox.checked;
+
+    const newlyDeadCheckboxLabel = document.createElement('span');
+    newlyDeadCheckboxLabel.innerText = 'Newly Dead Cells';
+
+    newlyDeadCheckboxContainer.appendChild(newlyDeadCheckbox);
+    newlyDeadCheckboxContainer.appendChild(newlyDeadCheckboxLabel);
+
+    // Newly Alive Cells Checkbox
+    const newbornCheckboxContainer = document.createElement('label');
+    newbornCheckboxContainer.className = 'checkbox-container';
+
+    const newbornCheckbox = document.createElement('input');
+    newbornCheckbox.type = 'checkbox';
+    newbornCheckbox.id = `newborn-checkbox-${sliderIdCounter}`;
+    newbornCheckbox.disabled = !stateCountCheckbox.checked;
+
+    const newbornCheckboxLabel = document.createElement('span');
+    newbornCheckboxLabel.innerText = 'Newly Alive Cells';
+
+    newbornCheckboxContainer.appendChild(newbornCheckbox);
+    newbornCheckboxContainer.appendChild(newbornCheckboxLabel);
+
+    playSoundForContainer.appendChild(playSoundForLabel);
+    playSoundForContainer.appendChild(aliveCheckboxContainer);
+    playSoundForContainer.appendChild(newlyDeadCheckboxContainer);
+    playSoundForContainer.appendChild(newbornCheckboxContainer);
+
+    controlsContainer.appendChild(playSoundForContainer);
+
+    // Assemble Options Area
+    optionsArea.appendChild(buttonsContainer);
+    optionsArea.appendChild(twoColumnsContainer);
+    optionsArea.appendChild(controlsContainer);
 
     container.appendChild(simArea);
     container.appendChild(optionsArea);
     document.getElementById('left-side').appendChild(container);
 
+    // Set Canvas Dimensions
     canvas.width = simArea.clientWidth;
     canvas.height = simArea.clientHeight;
 
+    // Define Controls Object
     const controls = {
-        soundModeToggle: soundModeToggle,
-        soundModeSelect: soundModeSelect,
-        aliveSoundCheckbox: aliveSoundCheckbox,
-        newlyDeadSoundCheckbox: newlyDeadSoundCheckbox,
-        newbornSoundCheckbox: newbornSoundCheckbox,
-        updateSpeedSlider: updateSpeedSlider,
         volumeSlider: volumeSlider,
+        volumeValue: volumeValue,
+        updateSpeedSlider: updateSpeedSlider,
+        updateSpeedValue: updateSpeedValue,
         rhythmicOffsetSlider: rhythmicOffsetSlider,
-        repetitionsSelect: repetitionsSelect
+        rhythmicOffsetValue: rhythmicOffsetValue,
+        repetitionsSelect: repetitionsSelect,
+        musicGenSelect: musicGenSelect,
+        soundModeToggle: stateCountCheckbox,
+        soundModeSelect: musicGenSelect, // Now using musicGenSelect for mode
+        aliveCheckbox: aliveCheckbox,
+        newlyDeadCheckbox: newlyDeadCheckbox,
+        newbornCheckbox: newbornCheckbox
     };
 
-    const game = new GameOfLife(simSize, simSize, canvas, counters, key, scale, container, controls, tet, selectedSynth);
+    // Initialize GameOfLife Instance
+    const game = new GameOfLife(simSize, simSize, canvas, {
+        alive: aliveLabel,
+        newborn: newbornLabel,
+        newlyDead: diedLabel
+    }, key, scale, container, controls, tet, selectedSynth);
 
     if (isPopulated) {
         game.randomizeGrid();
     }
 
-    startButton.addEventListener('click', () => {
-        startOnDownbeat(game);
-    });
-
+    // Event Listeners for Control Icons
+    startButton.addEventListener('click', () => startOnDownbeat(game));
     stopButton.addEventListener('click', () => game.stop());
-
-    rerandomizeButton.addEventListener('click', () => {
-        game.randomizeGrid();
-    });
-
+    rerandomizeButton.addEventListener('click', () => game.randomizeGrid());
     deleteButton.addEventListener('click', () => {
         game.stop();
         container.remove();
     });
 
-    window.addEventListener('resize', () => {
-        canvas.width = simArea.clientWidth;
-        canvas.height = simArea.clientHeight;
-        game.renderGrid();
+    // Event Listener to Enable/Disable Checkboxes Based on State Count Toggle
+    stateCountCheckbox.addEventListener('change', () => {
+        const isChecked = stateCountCheckbox.checked;
+        aliveCheckbox.disabled = !isChecked;
+        newlyDeadCheckbox.disabled = !isChecked;
+        newbornCheckbox.disabled = !isChecked;
+
+        if (!isChecked) {
+            aliveCheckbox.checked = false;
+            newlyDeadCheckbox.checked = false;
+            newbornCheckbox.checked = false;
+        }
+    });
+
+    // Update Slider Value Displays on Input
+    volumeSlider.addEventListener('input', () => {
+        controls.volumeValue.innerText = volumeSlider.value;
+    });
+
+    updateSpeedSlider.addEventListener('input', () => {
+        controls.updateSpeedValue.innerText = parseFloat(updateSpeedSlider.value).toFixed(2);
+    });
+
+    rhythmicOffsetSlider.addEventListener('input', () => {
+        controls.rhythmicOffsetValue.innerText = parseFloat(rhythmicOffsetSlider.value).toFixed(2);
     });
 });
 
-// Tempo slider functionality
+// Tempo Slider Functionality
 document.getElementById('tempo-slider').addEventListener('input', function() {
     const tempo = document.getElementById('tempo-slider').value;
     document.getElementById('tempo-value').innerText = `${tempo} BPM`;

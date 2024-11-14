@@ -105,7 +105,7 @@ const synthInstruments = {
     },
     'Kick': {
         oscillators: [
-            { waveform: WaveformType.SINE, detune: -4800, volume: 0.8 },
+            { waveform: WaveformType.SINE, detune: -3600, volume: 0.8 },
             { waveform: WaveformType.SINE, detune: -2400, volume: 0.8 },
             { waveform: WaveformType.TRIANGLE, detune: -1700, volume: 0.3 },
     //            { waveform: WaveformType.NOISE, detune: -2400, volume: 1 }
@@ -120,20 +120,19 @@ const synthInstruments = {
     },
     'Bass': {
         oscillators: [
-            { waveform: WaveformType.SINE, detune: -2400, volume: 0.5 },
-            { waveform: WaveformType.TRIANGLE, detune: -2400, volume: 0.3 }
+            { waveform: WaveformType.SINE, detune: -2400, volume: 0.6 },
+            { waveform: WaveformType.TRIANGLE, detune: -1205, volume: 0.3 }
         ],
-        amplitudeEnvelope: { attack: 0.05, decay: 0.3, sustain: 0.6, release: 0.4 },
-        filter: { type: FilterType.LOWPASS, frequency: 600, resonance: 1.5 },
-        filterEnvelope: { attack: 0.05, decay: 0.3, sustainFrequency: 600, peakFrequency: 1800, release: 0.4 },
-        lfo: { waveform: LFOWaveformType.SINE, frequency: 1, depth: 150, target: 'filter.frequency' },
-        distortion: { type: 'tube', amount: 0.3 },
-        unison: { voices: 4, detune: 20 }
+        amplitudeEnvelope: { attack: 0.05, decay: 0.3, sustain: 0.3, release: 0.7 },
+        //filter: { type: FilterType.LOWPASS, frequency: 1200, resonance: 1.0 },
+        //filterEnvelope: { attack: 0.05, decay: 0.3, sustainFrequency: 800, peakFrequency: 1800, release: 0.4 },
+       // lfo: { waveform: LFOWaveformType.SINE, frequency: 400, depth: 150, target: 'filter.frequency' },
+        distortion: { type: 'tube', amount: 0.2 },
     },
     'Glitch Bass': {
         oscillators: [
-            { waveform: WaveformType.SQUARE, detune: -2400, volume: 0.6 },
-            { waveform: WaveformType.NOISE, detune: -2400, volume: 0.1 }
+            { waveform: WaveformType.SQUARE, detune: -1200, volume: 0.6 },
+            { waveform: WaveformType.NOISE, detune: -1200, volume: 0.1 }
         ],
         amplitudeEnvelope: { attack: 0.02, decay: 0.15, sustain: 0.4, release: 0.2 },
         filter: { type: FilterType.BANDPASS, frequency: 800, resonance: 2.0 },
@@ -144,8 +143,8 @@ const synthInstruments = {
     },
     'FM Bass': {
         oscillators: [
-            { waveform: WaveformType.SINE, detune: -2400, volume: 0.5, modulationIndex: 2, frequencyMultiplier: 1 },
-            { waveform: WaveformType.SINE, detune: -2400, volume: 0.3, frequencyMultiplier: 2 }
+            { waveform: WaveformType.SINE, detune: -1200, volume: 0.5, modulationIndex: 2, frequencyMultiplier: 1 },
+            { waveform: WaveformType.SINE, detune: -1200, volume: 0.3, frequencyMultiplier: 2 }
         ],
         amplitudeEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.3 },
         filter: { type: FilterType.HIGHPASS, frequency: 500, resonance: 1.0 },
@@ -223,10 +222,9 @@ const synthInstruments = {
     },
     'WobbleWobble': {
         oscillators: [
-            { waveform: WaveformType.SINE, detune: 0, volume: 0.6 },
-            { waveform: WaveformType.TRIANGLE, detune: 0.2, volume: 0.4 },
-            { waveform: WaveformType.SINE, detune: 0.5, volume: 0.2 },
-            { waveform: WaveformType.NOISE, volume: 0.05 }
+            { waveform: WaveformType.SINE, detune: 0, volume: 0.3 },
+            { waveform: WaveformType.TRIANGLE, detune: 2, volume: 0.2 },
+            { waveform: WaveformType.SINE, detune: 5, volume: 0.1 },
         ],
         //pitchEnvelope: { attack: 0.005, decay: 0.1, sustain: 0.0, release: 0.05, startFrequency: 120, endFrequency: 40 },
         //harmonicPitchEnvelope: { attack: 0.005, decay: 0.08, sustain: 0.0, release: 0.1, sustainFrequency: 800, releaseFrequency: 1200 },
