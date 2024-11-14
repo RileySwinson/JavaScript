@@ -217,7 +217,8 @@ class GameOfLife {
         this.isRunning = true;
     
         const scheduleNextUpdate = () => {
-            const baseTempo = parseInt(document.getElementById('tempo-slider').value);
+            //const baseTempo = parseInt(document.getElementById('tempo-slider').value);
+            const baseTempo = 120;
             const speedMultiplier = parseFloat(this.controls.updateSpeedSlider.value);
             const interval = (60000 / baseTempo) * (1 / speedMultiplier);
     
@@ -452,7 +453,8 @@ document.getElementById('tet-select').addEventListener('change', updateKeyAndSca
 
 // Function to start automaton on the next downbeat
 function startOnDownbeat(gameInstance) {
-    const baseTempo = parseInt(document.getElementById('tempo-slider').value);
+    //const baseTempo = parseInt(document.getElementById('tempo-slider').value);
+    const baseTempo = 120;
     const msPerBeat = 60000 / baseTempo;
 
     const now = Date.now();
@@ -877,7 +879,7 @@ document.getElementById('add-simulation').addEventListener('click', function () 
 });
 
 // Tempo Slider Functionality
-document.getElementById('tempo-slider').addEventListener('input', function() {
-    const tempo = document.getElementById('tempo-slider').value;
-    document.getElementById('tempo-value').innerText = `${tempo} BPM`;
-});
+//document.getElementById('tempo-slider').addEventListener('input', function() {
+//    const tempo = document.getElementById('tempo-slider').value;
+//    document.getElementById('tempo-value').innerText = `${tempo} BPM`;
+//});
